@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Dashboard | Zero-G Academy</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="topnav">
+    <a class="brand" href="index.html">
+      <span class="brand-mark" aria-hidden="true">ZG</span>
+      <span>Zero-G Academy</span>
+    </a>
+    <nav aria-label="Main">
+      <ul class="nav-links">
+        <li><a class="nav-link" href="index.html">Home</a></li>
+        <li><a class="nav-link" href="dashboard.html" aria-current="page">Dashboard</a></li>
+        <li><a class="nav-link" href="#profile">Profile</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="dash-layout">
+
+    <aside id="profile" class="profile" aria-labelledby="profile-title">
+      <h2 id="profile-title">Student Profile</h2>
+      <div class="avatar" aria-hidden="true">CN</div>
+      <p id="profile-name" class="profile-name">Cadet Nova</p>
+      <dl class="stat-list">
+        <div class="stat">
+          <dt>Current level</dt>
+          <dd id="stat-level" class="accent">Level 1</dd>
+        </div>
+        <div class="stat">
+          <dt>Total time spent</dt>
+          <dd id="stat-time">2.5 hours</dd>
+        </div>
+        <div class="stat">
+          <dt>Lessons done</dt>
+          <dd id="stat-done">0 / 10</dd>
+        </div>
+      </dl>
+      <p id="placement-note" class="small"></p>
+    </aside>
+
+    <main class="dash-main">
+      <div class="dash-head">
+        <h1>Lesson Plan</h1>
+        <p>Finish each node to unlock the next. Tap a number to see the lesson.</p>
+      </div>
+      <div id="tree"></div>
+    </main>
+
+  </div>
+
+  <!-- Lesson detail modal -->
+  <dialog id="lesson-dialog" aria-labelledby="lesson-title">
+    <div class="modal-body">
+      <div class="modal-image" id="lesson-image" role="img" aria-label="Placeholder image">Image coming soon</div>
+      <div>
+        <p id="lesson-kicker" class="kicker"></p>
+        <h2 id="lesson-title" class="modal-title"></h2>
+      </div>
+      <p id="lesson-description" class="modal-text"></p>
+      <div class="meta-row">
+        <span id="lesson-time" class="pill"></span>
+        <span id="lesson-status" class="pill"></span>
+      </div>
+      <ul id="lesson-submodules" class="submodules" aria-label="Sub-modules"></ul>
+      <p id="lesson-note" class="modal-note" role="status" aria-live="polite"></p>
+      <div class="modal-actions">
+        <button id="lesson-close" class="btn btn-orange-ghost" type="button">Close</button>
+        <button id="lesson-start" class="btn btn-cyan" type="button">Start lesson</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    (() => {
+      const PROFILE_KEY = "zga.profile.v1";
+
+      /** Mock student data. Total time is 150 minutes, shown as 2.5 hours. */
+      const MOCK = {
+        username: "Cadet Nova",
+        totalMinutes: 150,
+        completedIds: [1, 2],     // mock progress: nodes 1 and 2 are done
+      };
+
+      const GROUPS = {
+        astronauts: { title: "About Astronauts", difficulty: "Easy", window: "20–30 mins", tier: "easy" },
+        spaceships: { title: "About Spaceships", difficulty: "Medium", window: "10–20 mins", tier: "medium" },
+      };
+
+      /** Nodes 1–10 in path order. `minutes` is the estimate and sits inside the group's window. */
+      const LESSONS = [
+        { id: 1,  group: "astronauts", title: "Who Are Astronauts?",
+          description: "Meet the people trained to live and work in space.", minutes: 25 },
+        { id: 2,  group: "astronauts", title: "Training for Space",
+          description: "See how astronauts practise for weightlessness, teamwork and emergencies.", minutes: 28 },
+        { id: 3,  group: "astronauts", title: "Life on the Space Station",
+          description: "Explore daily routines, sleep and exercise aboard the International Space Station.", minutes: 26 },
+        { id: 4,  group: "astronauts", title: "Spacesuits",
+          description: "Learn why a spacesuit is a tiny spaceship that keeps you alive outside.", minutes: 22 },
+        { id: 5,  group: "astronauts", title: "Working in Microgravity",
+          description: "Discover how tools, food and bodies behave when everything floats.", minutes: 30 },
+        { id: 6,  group: "spaceships", title: "Rocket Parts",
+          description: "Name the main parts of a rocket: engines, fuel tanks and the nose cone.", minutes: 12 },
+        { id: 7,  group: "spaceships", title: "How Rockets Launch",
+          description: "Follow a launch from the pad to orbit, step by step.", minutes: 15 },
+        { id: 8,  group: "spaceships", title: "Orbiting Spacecraft",
+          description: "Find out why spacecraft keep moving around Earth instead of falling down.", minutes: 18 },
+        { id: 9,  group: "spaceships", title: "Landing a Spaceship",
+          description: "Understand heat shields, parachutes and landing legs.", minutes: 14 },
+        { id: 10, group: "spaceships", title: "Designing a Spaceship",
+          description: "Sketch a spaceship that carries people safely on a long trip.", minutes: 20 },
+      ];
+
+      const $ = (id) => document.getElementById(id);
+      const dialog = $("lesson-dialog");
+
+      /** Sequential rule: a node is done if completed, current if it is the first not done, else locked. */
+      function statusOf(id) {
+        if (MOCK.completedIds.includes(id)) return "done";
+        const firstOpen = LESSONS.find((l) => !MOCK.completedIds.includes(l.id));
+        return firstOpen && firstOpen.id === id ? "current" : "locked";
+      }
+
+      const STATUS_TEXT = { done: "Completed", current: "Up next", locked: "Locked" };
+
+      function readProfile() {
+        try {
+          return JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
+        } catch {
+          return {};
+        }
+      }
+
+      function renderProfile() {
+        const profile = readProfile();
+        const hasLevel = Number.isInteger(profile.placementLevel);
+
+        $("profile-name").textContent = MOCK.username;
+        $("stat-level").textContent = `Level ${hasLevel ? profile.placementLevel : 1}`;
+        $("stat-time").textContent = `${(MOCK.totalMinutes / 60).toFixed(1)} hours`;
+        $("stat-done").textContent = `${MOCK.completedIds.length} / ${LESSONS.length}`;
+        $("placement-note").textContent = hasLevel
+          ? `Starting level from your placement test (${profile.placementScore} of 5 right).`
+          : "Level 1 until you take the placement test on the home page.";
+      }
+
+      /** Build the two tier groups with the zig-zag node path. */
+      function renderTree() {
+        const tree = $("tree");
+        for (const [key, group] of Object.entries(GROUPS)) {
+          const section = document.createElement("section");
+          section.className = `tree-group ${group.tier}`;
+          section.setAttribute("aria-labelledby", `group-${key}`);
+
+          const head = document.createElement("header");
+          head.className = "group-head";
+          const h2 = document.createElement("h2");
+          h2.id = `group-${key}`;
+          h2.textContent = group.title;
+          const meta = document.createElement("span");
+          meta.textContent = `${group.difficulty} · ${group.window} per lesson`;
+          head.append(h2, meta);
+
+          const list = document.createElement("ol");
+          list.className = "nodes";
+
+          LESSONS.filter((l) => l.group === key).forEach((lesson) => {
+            const status = statusOf(lesson.id);
+
+            const item = document.createElement("li");
+
+            const node = document.createElement("button");
+            node.type = "button";
+            node.className = `node is-${status}`;
+            node.textContent = String(lesson.id);
+            node.setAttribute(
+              "aria-label",
+              `Lesson ${lesson.id}: ${lesson.title}, ${STATUS_TEXT[status]}, about ${lesson.minutes} minutes`,
+            );
+            node.addEventListener("click", () => openLesson(lesson));
+
+            const label = document.createElement("span");
+            label.className = "node-label";
+            label.textContent = lesson.title;
+            const time = document.createElement("small");
+            time.textContent = `${lesson.minutes} mins · ${STATUS_TEXT[status]}`;
+            label.append(time);
+
+            item.append(node, label);
+            list.append(item);
+          });
+
+          section.append(head, list);
+          tree.append(section);
+        }
+      }
+
+      /** Open the detail modal for one lesson. */
+      function openLesson(lesson) {
+        const group = GROUPS[lesson.group];
+        const status = statusOf(lesson.id);
+
+        dialog.dataset.tier = group.tier;
+        $("lesson-kicker").textContent = `Node ${lesson.id} · ${group.title} · ${group.difficulty}`;
+        $("lesson-title").textContent = lesson.title;
+        $("lesson-image").setAttribute("aria-label", `Placeholder image for ${lesson.title}`);
+        $("lesson-description").textContent = lesson.description;
+        $("lesson-time").textContent = `Estimated time: ${lesson.minutes} mins`;
+        $("lesson-status").textContent = STATUS_TEXT[status];
+        $("lesson-note").textContent = "";
+
+        const subs = [
+          ["Video", `Short video: ${lesson.title}`],
+          ["Quiz", "5-question quiz"],
+          ["Simulation", `Hands-on simulation: ${lesson.title}`],
+        ];
+        $("lesson-submodules").replaceChildren(
+          ...subs.map(([type, text]) => {
+            const li = document.createElement("li");
+            const t = document.createElement("span");
+            t.className = "type";
+            t.textContent = type;
+            const d = document.createElement("span");
+            d.textContent = text;
+            li.append(t, d);
+            return li;
+          }),
+        );
+
+        const start = $("lesson-start");
+        const locked = status === "locked";
+        start.disabled = locked;
+        start.onclick = () => {
+          // TODO(lessons): route to the lesson player for lesson.id.
+          $("lesson-note").textContent = `"${lesson.title}" is coming soon.`;
+        };
+        if (locked) $("lesson-note").textContent = "Finish the previous node to unlock this lesson.";
+
+        dialog.showModal();
+      }
+
+      $("lesson-close").addEventListener("click", () => dialog.close());
+      dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) dialog.close();
+      });
+
+      renderProfile();
+      renderTree();
+    })();
+  </script>
+</body>
+</html>

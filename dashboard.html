@@ -5,8 +5,60 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Dashboard | Zero-G Academy</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="lesson-data.js"></script>
+  <script src="lesson-art.js"></script>
 </head>
-<body>
+<body class="has-scene">
+
+  <!-- Background scene: deep space, a cratered Moon and a red Mars horizon (layered SVG) -->
+  <div class="scene" aria-hidden="true">
+    <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="scene-sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#02040E"/>
+          <stop offset=".6" stop-color="#0A1A3F"/>
+          <stop offset="1" stop-color="#2A0F0A"/>
+        </linearGradient>
+        <radialGradient id="scene-glow" cx="50%" cy="100%" r="60%">
+          <stop offset="0" stop-color="#FF7A1A" stop-opacity=".5"/>
+          <stop offset="1" stop-color="#FF7A1A" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="scene-moon" cx="40%" cy="35%" r="70%">
+          <stop offset="0" stop-color="#F4F6FA"/>
+          <stop offset=".6" stop-color="#9AA3B5"/>
+          <stop offset="1" stop-color="#3A4256"/>
+        </radialGradient>
+        <linearGradient id="scene-mars-far" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#8A3418"/>
+          <stop offset="1" stop-color="#3A120A"/>
+        </linearGradient>
+        <linearGradient id="scene-mars-near" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#C4502A"/>
+          <stop offset="1" stop-color="#5A1A0C"/>
+        </linearGradient>
+      </defs>
+      <rect width="1600" height="900" fill="url(#scene-sky)"/>
+      <rect width="1600" height="900" fill="url(#scene-glow)"/>
+      <g fill="#FFFFFF" opacity=".8">
+        <circle cx="120" cy="90" r="1.6"/><circle cx="310" cy="210" r="1.2"/><circle cx="520" cy="60" r="1.4"/>
+        <circle cx="740" cy="170" r="1"/><circle cx="960" cy="90" r="1.5"/><circle cx="1120" cy="260" r="1.1"/>
+        <circle cx="1480" cy="80" r="1.4"/><circle cx="1540" cy="330" r="1"/><circle cx="60" cy="380" r="1.1"/>
+        <circle cx="430" cy="360" r="1"/><circle cx="860" cy="420" r="1.2"/><circle cx="1010" cy="470" r="1"/>
+      </g>
+      <!-- Moon with craters -->
+      <circle cx="1310" cy="190" r="150" fill="url(#scene-moon)" opacity=".9"/>
+      <g fill="#5B6378" opacity=".45">
+        <circle cx="1250" cy="160" r="26"/><circle cx="1340" cy="250" r="18"/><circle cx="1280" cy="262" r="12"/>
+        <circle cx="1370" cy="150" r="10"/><circle cx="1215" cy="215" r="8"/><circle cx="1352" cy="98" r="6"/>
+      </g>
+      <!-- Mars horizon, two layers -->
+      <path d="M0 720 Q200 650 420 700 T860 690 T1300 700 T1600 680 V900 H0Z" fill="url(#scene-mars-far)" opacity=".9"/>
+      <path d="M0 780 Q260 720 520 770 T1040 760 T1600 750 V900 H0Z" fill="url(#scene-mars-near)"/>
+      <g fill="#3A120A" opacity=".35">
+        <ellipse cx="300" cy="812" rx="60" ry="10"/><ellipse cx="980" cy="836" rx="90" ry="12"/><ellipse cx="1380" cy="800" rx="46" ry="8"/>
+      </g>
+    </svg>
+  </div>
 
   <header class="topnav">
     <a class="brand" href="index.html">
@@ -39,7 +91,7 @@
         </div>
         <div class="stat">
           <dt>Lessons done</dt>
-          <dd id="stat-done">0 / 10</dd>
+          <dd id="stat-done">0 / 30</dd>
         </div>
       </dl>
       <p id="placement-note" class="small"></p>
@@ -48,7 +100,7 @@
     <main class="dash-main">
       <div class="dash-head">
         <h1>Lesson Plan</h1>
-        <p>Finish each node to unlock the next. Tap a number to see the lesson.</p>
+        <p>Thirty levels in three categories. Finish the three tasks in a level to unlock the next. Tap a number to open it.</p>
       </div>
       <div id="tree"></div>
     </main>
@@ -56,9 +108,9 @@
   </div>
 
   <!-- Lesson detail modal -->
-  <dialog id="lesson-dialog" aria-labelledby="lesson-title">
+  <dialog id="lesson-dialog" class="lesson-dialog" aria-labelledby="lesson-title">
     <div class="modal-body">
-      <div class="modal-image" id="lesson-image" role="img" aria-label="Placeholder image">Image coming soon</div>
+      <div id="lesson-art" class="lesson-art"></div>
       <div>
         <p id="lesson-kicker" class="kicker"></p>
         <h2 id="lesson-title" class="modal-title"></h2>
@@ -68,11 +120,24 @@
         <span id="lesson-time" class="pill"></span>
         <span id="lesson-status" class="pill"></span>
       </div>
+
+      <div class="task-progress">
+        <p id="task-count" class="task-count">0/3 tasks completed</p>
+        <div class="progress-track" aria-hidden="true"><span id="task-bar"></span></div>
+      </div>
       <ul id="lesson-submodules" class="submodules" aria-label="Sub-modules"></ul>
-      <p id="lesson-note" class="modal-note" role="status" aria-live="polite"></p>
+
+      <section id="study-panel" class="study-panel" data-state="idle" hidden>
+        <p class="study-status"><span class="spinner" aria-hidden="true"></span><span id="study-text"></span></p>
+        <div id="study-frame-wrap" class="study-frame" hidden>
+          <iframe id="study-frame" title="Lesson simulation" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+        <button id="study-retry" class="btn btn-orange-ghost" type="button" hidden>Check again</button>
+      </section>
+
       <div class="modal-actions">
         <button id="lesson-close" class="btn btn-orange-ghost" type="button">Close</button>
-        <button id="lesson-start" class="btn btn-cyan" type="button">Start lesson</button>
+        <button id="study-button" class="btn btn-cyan" type="button">Study</button>
       </div>
     </div>
   </dialog>
@@ -80,85 +145,104 @@
   <script>
     (() => {
       const PROFILE_KEY = "zga.profile.v1";
+      const TASKS_KEY = "zga.tasks.v1";
       const GUEST_NAME = "Guest Cadet";
+      const MISSION_ONE_URL = "mission1.html";
 
-      /** Mock progress. Nodes 1 and 2 are done; the rest follow the sequence. */
-      const MOCK = {
-        completedIds: [1, 2],
-      };
-
-      const GROUPS = {
-        astronauts: { title: "About Astronauts", difficulty: "Easy", window: "20–30 mins", tier: "easy" },
-        spaceships: { title: "About Spaceships", difficulty: "Medium", window: "10–20 mins", tier: "medium" },
-      };
-
-      /** Nodes 1–10 in path order. `minutes` is the estimate and sits inside the group's window. */
-      const LESSONS = [
-        { id: 1,  group: "astronauts", title: "Who Are Astronauts?",
-          description: "Meet the people trained to live and work in space.", minutes: 25 },
-        { id: 2,  group: "astronauts", title: "Training for Space",
-          description: "See how astronauts practise for weightlessness, teamwork and emergencies.", minutes: 28 },
-        { id: 3,  group: "astronauts", title: "Life on the Space Station",
-          description: "Explore daily routines, sleep and exercise aboard the International Space Station.", minutes: 26 },
-        { id: 4,  group: "astronauts", title: "Spacesuits",
-          description: "Learn why a spacesuit is a tiny spaceship that keeps you alive outside.", minutes: 22 },
-        { id: 5,  group: "astronauts", title: "Working in Microgravity",
-          description: "Discover how tools, food and bodies behave when everything floats.", minutes: 30 },
-        { id: 6,  group: "spaceships", title: "Rocket Parts",
-          description: "Name the main parts of a rocket: engines, fuel tanks and the nose cone.", minutes: 12 },
-        { id: 7,  group: "spaceships", title: "How Rockets Launch",
-          description: "Follow a launch from the pad to orbit, step by step.", minutes: 15 },
-        { id: 8,  group: "spaceships", title: "Orbiting Spacecraft",
-          description: "Find out why spacecraft keep moving around Earth instead of falling down.", minutes: 18 },
-        { id: 9,  group: "spaceships", title: "Landing a Spaceship",
-          description: "Understand heat shields, parachutes and landing legs.", minutes: 14 },
-        { id: 10, group: "spaceships", title: "Designing a Spaceship",
-          description: "Sketch a spaceship that carries people safely on a long trip.", minutes: 20 },
-      ];
+      const { CATEGORIES, LESSONS, TASK_KEYS } = window.ZGA_LESSONS;
+      const ART = window.ZGA_ART;
+      const TASK_LABELS = { video: "Video", quiz: "Quiz", simulation: "Simulation" };
+      const STATUS_TEXT = { done: "Completed", current: "Up next", locked: "Locked" };
 
       const $ = (id) => document.getElementById(id);
       const dialog = $("lesson-dialog");
+      let artCounter = 0;
+      let activeId = null;
 
-      /** Sequential rule: a node is done if completed, current if it is the first not done, else locked. */
-      function statusOf(id) {
-        if (MOCK.completedIds.includes(id)) return "done";
-        const firstOpen = LESSONS.find((l) => !MOCK.completedIds.includes(l.id));
-        return firstOpen && firstOpen.id === id ? "current" : "locked";
-      }
-
-      const STATUS_TEXT = { done: "Completed", current: "Up next", locked: "Locked" };
-
-      /** Read the stored profile; storage can be blocked, so fail to an empty object. */
-      function readProfile() {
+      /* ---------- Storage (fails quietly if blocked) ---------- */
+      function readJSON(key, fallback) {
         try {
-          return JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
+          const value = JSON.parse(localStorage.getItem(key));
+          return value ?? fallback;
         } catch {
-          return {};
+          return fallback;
         }
       }
 
-      /** Initials for the avatar: first letter of the first two words. */
+      function writeJSON(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch {
+          /* blocked storage: progress lasts for this page view only */
+        }
+      }
+
+      /* ---------- Progress ---------- */
+      // Stored as { "<lessonId>": ["video", "quiz", ...] }
+      let progress = readJSON(TASKS_KEY, {});
+
+      function doneTasks(id) {
+        const list = Array.isArray(progress[id]) ? progress[id] : [];
+        return TASK_KEYS.filter((key) => list.includes(key));
+      }
+
+      function isLessonDone(id) {
+        return doneTasks(id).length === TASK_KEYS.length;
+      }
+
+      /** Sequential rule: done if all tasks are complete, current if first not done, else locked. */
+      function statusOf(id) {
+        if (isLessonDone(id)) return "done";
+        const firstOpen = LESSONS.find((lesson) => !isLessonDone(lesson.id));
+        return firstOpen && firstOpen.id === id ? "current" : "locked";
+      }
+
+      function toggleTask(id, key) {
+        if (statusOf(id) === "locked") return;
+        const current = doneTasks(id);
+        const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key];
+        progress = { ...progress, [id]: next };
+        writeJSON(TASKS_KEY, progress);
+        renderTree();
+        renderProfile();
+        renderModalState();
+      }
+
+      /* ---------- Art ---------- */
+      /** Return a copy of a lesson's SVG with unique gradient and filter ids. */
+      function artFor(id, { mini = false } = {}) {
+        artCounter += 1;
+        let svg = ART[id].replace(/__ID__/g, `z${id}-${artCounter}`);
+        if (mini) svg = svg.replace("<svg ", '<svg preserveAspectRatio="xMidYMid slice" ');
+        return svg;
+      }
+
+      /* ---------- Profile ---------- */
+      function readProfile() {
+        return readJSON(PROFILE_KEY, {});
+      }
+
       function initialsFor(name) {
-        const parts = name.split(" ").filter(Boolean);
-        const letters = parts.slice(0, 2).map((p) => p[0].toUpperCase());
+        const letters = name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase());
         return letters.join("") || "GC";
       }
 
-      /** Inject the saved cadet name, level and lesson count into the profile sidebar. */
       function renderProfile() {
         const profile = readProfile();
         const name = typeof profile.name === "string" && profile.name.trim() ? profile.name.trim() : GUEST_NAME;
         const hasLevel = Number.isInteger(profile.placementLevel);
+        const done = LESSONS.filter((lesson) => isLessonDone(lesson.id)).length;
 
         $("profile-name").textContent = name;
         $("avatar").textContent = initialsFor(name);
         $("stat-level").textContent = `Level ${hasLevel ? profile.placementLevel : 1}`;
-        $("stat-done").textContent = `${MOCK.completedIds.length} / ${LESSONS.length}`;
+        $("stat-done").textContent = `${done} / ${LESSONS.length}`;
         $("placement-note").textContent = hasLevel
           ? `Starting level from your placement test (${profile.placementScore} of 5 right).`
           : "Level 1 until you take the placement test on the home page.";
       }
 
+      /* ---------- Live time tracker ---------- */
       /** Format a number of seconds as MM:SS. Minutes keep counting past 59. */
       function formatMMSS(totalSeconds) {
         const minutes = Math.floor(totalSeconds / 60);
@@ -168,7 +252,7 @@
 
       /**
        * Live session timer. Starts at 00:00 and adds one second every tick.
-       * It pauses while the tab is hidden so it only counts time the cadet is looking at the page.
+       * It pauses while the tab is hidden, so it counts only time the cadet is looking at the page.
        */
       function startTimeTracker() {
         const output = $("stat-time");
@@ -184,46 +268,68 @@
         window.addEventListener("pagehide", () => clearInterval(timerId));
       }
 
-      /** Build the two tier groups with the zig-zag node path. */
+      /* ---------- Roadmap ---------- */
       function renderTree() {
         const tree = $("tree");
-        for (const [key, group] of Object.entries(GROUPS)) {
+        tree.replaceChildren();
+
+        for (const category of Object.values(CATEGORIES)) {
           const section = document.createElement("section");
-          section.className = `tree-group ${group.tier}`;
-          section.setAttribute("aria-labelledby", `group-${key}`);
+          section.className = `tree-group ${category.key}`;
+          section.setAttribute("aria-labelledby", `zone-${category.key}`);
 
           const head = document.createElement("header");
           head.className = "group-head";
+          const tag = document.createElement("p");
+          tag.className = "category-tag";
+          tag.textContent = `Category ${category.numerals} · Nodes ${category.range[0]}–${category.range[1]}`;
           const h2 = document.createElement("h2");
-          h2.id = `group-${key}`;
-          h2.textContent = group.title;
+          h2.id = `zone-${category.key}`;
+          h2.textContent = category.title;
           const meta = document.createElement("span");
-          meta.textContent = `${group.difficulty} · ${group.window} per lesson`;
-          head.append(h2, meta);
+          meta.textContent = `${category.difficulty} · ${category.window} per lesson`;
+          head.append(tag, h2, meta);
 
           const list = document.createElement("ol");
           list.className = "nodes";
 
-          LESSONS.filter((l) => l.group === key).forEach((lesson) => {
+          LESSONS.filter((lesson) => lesson.category === category.key).forEach((lesson) => {
             const status = statusOf(lesson.id);
+            const doneCount = doneTasks(lesson.id).length;
 
             const item = document.createElement("li");
 
             const node = document.createElement("button");
             node.type = "button";
             node.className = `node is-${status}`;
-            node.textContent = String(lesson.id);
             node.setAttribute(
               "aria-label",
-              `Lesson ${lesson.id}: ${lesson.title}, ${STATUS_TEXT[status]}, about ${lesson.minutes} minutes`,
+              `Lesson ${lesson.id}: ${lesson.title}, ${STATUS_TEXT[status]}, ${doneCount} of 3 tasks done, about ${lesson.minutes} minutes`,
             );
-            node.addEventListener("click", () => openLesson(lesson));
+            node.addEventListener("click", () => openLesson(lesson.id));
+
+            const art = document.createElement("span");
+            art.className = "node-art";
+            art.setAttribute("aria-hidden", "true");
+            art.innerHTML = artFor(lesson.id, { mini: true });
+
+            const number = document.createElement("span");
+            number.className = "node-no";
+            number.textContent = String(lesson.id);
+
+            node.append(art, number);
 
             const label = document.createElement("span");
             label.className = "node-label";
-            label.textContent = lesson.title;
+            if (lesson.flag) {
+              const flag = document.createElement("span");
+              flag.className = "flag";
+              flag.textContent = lesson.flag;
+              label.append(flag);
+            }
+            label.append(document.createTextNode(lesson.title));
             const time = document.createElement("small");
-            time.textContent = `${lesson.minutes} mins · ${STATUS_TEXT[status]}`;
+            time.textContent = `${lesson.minutes} mins · ${doneCount}/3 · ${STATUS_TEXT[status]}`;
             label.append(time);
 
             item.append(node, label);
@@ -235,51 +341,143 @@
         }
       }
 
-      /** Open the detail modal for one lesson. */
-      function openLesson(lesson) {
-        const group = GROUPS[lesson.group];
-        const status = statusOf(lesson.id);
+      /* ---------- Lesson modal ---------- */
+      function lessonById(id) {
+        return LESSONS.find((lesson) => lesson.id === id);
+      }
 
-        dialog.dataset.tier = group.tier;
-        $("lesson-kicker").textContent = `Node ${lesson.id} · ${group.title} · ${group.difficulty}`;
+      function openLesson(id) {
+        const lesson = lessonById(id);
+        const category = CATEGORIES[lesson.category];
+        activeId = id;
+
+        dialog.dataset.tier = category.key;
+        $("lesson-art").innerHTML = artFor(id);
+        $("lesson-kicker").textContent = `Lesson ${id} · ${category.title} · ${category.difficulty}`;
         $("lesson-title").textContent = lesson.title;
-        $("lesson-image").setAttribute("aria-label", `Placeholder image for ${lesson.title}`);
-        $("lesson-description").textContent = lesson.description;
+        $("lesson-description").textContent = lesson.objective;
         $("lesson-time").textContent = `Estimated time: ${lesson.minutes} mins`;
-        $("lesson-status").textContent = STATUS_TEXT[status];
-        $("lesson-note").textContent = "";
 
-        const subs = [
-          ["Video", `Short video: ${lesson.title}`],
-          ["Quiz", "5-question quiz"],
-          ["Simulation", `Hands-on simulation: ${lesson.title}`],
-        ];
-        $("lesson-submodules").replaceChildren(
-          ...subs.map(([type, text]) => {
-            const li = document.createElement("li");
-            const t = document.createElement("span");
-            t.className = "type";
-            t.textContent = type;
-            const d = document.createElement("span");
-            d.textContent = text;
-            li.append(t, d);
-            return li;
-          }),
-        );
-
-        const start = $("lesson-start");
-        const locked = status === "locked";
-        start.disabled = locked;
-        start.onclick = () => {
-          // TODO(lessons): route to the lesson player for lesson.id.
-          $("lesson-note").textContent = `"${lesson.title}" is coming soon.`;
-        };
-        if (locked) $("lesson-note").textContent = "Finish the previous node to unlock this lesson.";
-
+        resetStudy();
+        renderModalState();
         dialog.showModal();
       }
 
+      /** Refresh status, progress bar and sub-module list for the open lesson. */
+      function renderModalState() {
+        if (activeId === null) return;
+        const lesson = lessonById(activeId);
+        const status = statusOf(activeId);
+        const done = doneTasks(activeId);
+        const locked = status === "locked";
+
+        $("lesson-status").textContent = STATUS_TEXT[status];
+        $("task-count").textContent = `${done.length}/${TASK_KEYS.length} tasks completed`;
+        $("task-bar").style.width = `${(done.length / TASK_KEYS.length) * 100}%`;
+        $("study-button").disabled = locked;
+
+        $("lesson-submodules").replaceChildren(
+          ...TASK_KEYS.map((key) => {
+            const isDone = done.includes(key);
+            const li = document.createElement("li");
+
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "task";
+            button.disabled = locked;
+            button.setAttribute("aria-pressed", String(isDone));
+            button.addEventListener("click", () => toggleTask(activeId, key));
+
+            const type = document.createElement("span");
+            type.className = "type";
+            type.textContent = TASK_LABELS[key];
+            const title = document.createElement("span");
+            title.className = "task-title";
+            title.textContent = lesson.subs[key];
+            const state = document.createElement("span");
+            state.className = "state";
+            state.textContent = isDone ? "Done" : "To do";
+
+            button.append(type, title, state);
+            li.append(button);
+            return li;
+          }),
+        );
+      }
+
+      /* ---------- Study routing ---------- */
+      function setStudy(state, text) {
+        const panel = $("study-panel");
+        panel.dataset.state = state;
+        panel.hidden = false;
+        $("study-text").textContent = text;
+      }
+
+      function resetStudy() {
+        const frame = $("study-frame");
+        frame.removeAttribute("src");
+        $("study-frame-wrap").hidden = true;
+        $("study-retry").hidden = true;
+        $("study-panel").hidden = true;
+        $("study-panel").dataset.state = "idle";
+        $("study-text").textContent = "";
+      }
+
+      /** Check whether a file is served. Browsers block fetch on file://, so treat that as missing. */
+      async function fileAvailable(url) {
+        if (location.protocol === "file:") return false;
+        try {
+          const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+          return response.ok;
+        } catch {
+          return false;
+        }
+      }
+
+      async function startStudy() {
+        if (activeId === null || statusOf(activeId) === "locked") return;
+        const id = activeId;
+        const lesson = lessonById(id);
+
+        // Only lesson 1 has a built simulation for now. Others show a coming-soon note.
+        if (id !== 1) {
+          $("study-frame-wrap").hidden = true;
+          setStudy("idle", `The ${lesson.title} simulation is coming soon.`);
+          return;
+        }
+
+        $("study-button").disabled = true;
+        $("study-retry").hidden = true;
+        $("study-frame-wrap").hidden = true;
+        setStudy("loading", `Checking for ${MISSION_ONE_URL}…`);
+
+        const available = await fileAvailable(MISSION_ONE_URL);
+        $("study-button").disabled = statusOf(id) === "locked";
+        if (activeId !== id) return; // the cadet moved to another lesson meanwhile
+
+        if (available) {
+          $("study-frame").src = MISSION_ONE_URL;
+          $("study-frame-wrap").hidden = false;
+          setStudy("ready", "Simulation loaded below.");
+        } else {
+          $("study-frame").removeAttribute("src");
+          $("study-retry").hidden = false;
+          const hint =
+            location.protocol === "file:"
+              ? `Open this page through a local server (for example: python -m http.server) to load ${MISSION_ONE_URL}.`
+              : `${MISSION_ONE_URL} is not on this branch yet. It will load here once it is merged.`;
+          setStudy("missing", hint);
+        }
+      }
+
+      $("study-button").addEventListener("click", startStudy);
+      $("study-retry").addEventListener("click", startStudy);
       $("lesson-close").addEventListener("click", () => dialog.close());
+
+      dialog.addEventListener("close", () => {
+        $("study-frame").removeAttribute("src"); // stop any running simulation
+        activeId = null;
+      });
       dialog.addEventListener("click", (event) => {
         if (event.target === dialog) dialog.close();
       });

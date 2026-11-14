@@ -4,57 +4,598 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Zero-G Academy</title>
-  <link rel="stylesheet" href="src/assets/css/global.css">
-  <link rel="stylesheet" href="src/core/dashboard.css">
+  <style>
+    /* ---------- Design tokens ---------- */
+    :root {
+      --space-bg: #03040A;
+      --panel: #0B0D16;
+      --panel-2: #121626;
+      --line: #22283A;
+      --text: #F2F6FF;
+      --text-muted: #9AA6BF;
+      --text-dim: #6B7691;
+      --neon-blue: #00B7FF;
+      --neon-orange: #FF6A13;
+      --neon-violet: #B26BFF;
+      --font: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+      --tap: 48px;
+      color-scheme: dark;
+    }
+
+    /* The viewer's reset also does this; repeated so our display rules never override [hidden]. */
+    [hidden] { display: none !important; }
+    *, *::before, *::after { box-sizing: border-box; }
+
+    /* ---------- Starfield background (pure CSS, no image assets) ---------- */
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      font-family: var(--font);
+      color: var(--text);
+      background-color: var(--space-bg);
+      background-image:
+        radial-gradient(1px 1px at 12% 18%, #fff 50%, transparent 51%),
+        radial-gradient(1.5px 1.5px at 67% 42%, #cfe9ff 50%, transparent 51%),
+        radial-gradient(1px 1px at 83% 76%, #fff 50%, transparent 51%),
+        radial-gradient(1px 1px at 35% 88%, #ffd9b8 50%, transparent 51%),
+        radial-gradient(1px 1px at 52% 8%, #fff 50%, transparent 51%),
+        radial-gradient(1.5px 1.5px at 24% 61%, #bfe6ff 50%, transparent 51%),
+        radial-gradient(1px 1px at 91% 23%, #fff 50%, transparent 51%),
+        radial-gradient(1px 1px at 6% 93%, #fff 50%, transparent 51%),
+        radial-gradient(ellipse at 15% 0%, rgba(0, 183, 255, 0.14), transparent 60%),
+        radial-gradient(ellipse at 95% 100%, rgba(255, 106, 19, 0.10), transparent 60%);
+      background-size:
+        420px 420px, 380px 380px, 520px 520px, 330px 330px, 460px 460px,
+        290px 290px, 610px 610px, 240px 240px, 100% 100%, 100% 100%;
+      background-attachment: fixed;
+    }
+
+    /* ---------- Top navigation ---------- */
+    .topnav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem 1.5rem;
+      padding: 0.75rem clamp(1rem, 4vw, 2.5rem);
+      background: rgba(3, 4, 10, 0.78);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 2.1rem;
+      height: 2.1rem;
+      border: 1px solid var(--neon-blue);
+      border-radius: 8px;
+      color: var(--neon-blue);
+      font-size: 0.8rem;
+      box-shadow: 0 0 14px rgba(0, 183, 255, 0.45);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .tab {
+      min-height: var(--tap);
+      min-width: 7rem;
+      padding: 0 1.1rem;
+      font: inherit;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: color 0.18s, border-color 0.18s, box-shadow 0.18s;
+    }
+
+    .tab:hover { color: var(--text); }
+
+    .tab[aria-current="page"] {
+      color: var(--neon-blue);
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 16px rgba(0, 183, 255, 0.35) inset, 0 0 12px rgba(0, 183, 255, 0.25);
+    }
+
+    .tab:focus-visible,
+    .node:focus-visible,
+    .btn:focus-visible {
+      outline: 2px solid var(--neon-blue);
+      outline-offset: 3px;
+    }
+
+    /* ---------- Layout ---------- */
+    .main {
+      width: min(100%, 980px);
+      margin: 0 auto;
+      padding: 2.5rem clamp(1rem, 4vw, 2rem) 4rem;
+    }
+
+    .page-head { text-align: center; margin-bottom: 2.5rem; }
+
+    .page-head h1 {
+      margin: 0 0 0.5rem;
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      text-shadow: 0 0 24px rgba(0, 183, 255, 0.35);
+    }
+
+    .page-head p {
+      margin: 0 auto;
+      max-width: 36rem;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      line-height: 1.5;
+    }
+
+    .view[hidden] { display: none; }
+
+    /* ---------- Lesson plan roadmap ---------- */
+    .tier {
+      --tier: var(--neon-blue);
+      margin-bottom: 3.5rem;
+    }
+    .tier-easy   { --tier: var(--neon-blue); }
+    .tier-medium { --tier: var(--neon-orange); }
+    .tier-hard   { --tier: var(--neon-violet); }
+
+    .tier-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.25rem 0.75rem;
+      margin: 0 0 1.75rem;
+      text-align: center;
+    }
+
+    .tier-head h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      color: var(--tier);
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      text-shadow: 0 0 14px color-mix(in srgb, var(--tier) 60%, transparent);
+    }
+
+    .tier-head span {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    /* Two-column zig-zag path with a central spine. Odd nodes sit left, even nodes right. */
+    .nodes {
+      position: relative;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      row-gap: 1.6rem;
+    }
+
+    .nodes::before {
+      content: "";
+      position: absolute;
+      top: 1.5rem;
+      bottom: 1.5rem;
+      left: 50%;
+      width: 2px;
+      transform: translateX(-1px);
+      background: linear-gradient(to bottom, transparent, var(--tier) 15%, var(--tier) 85%, transparent);
+      box-shadow: 0 0 12px var(--tier);
+      opacity: 0.55;
+    }
+
+    .nodes li {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .nodes li:nth-child(odd) {
+      grid-column: 1;
+      justify-self: end;
+      flex-direction: row-reverse;
+      padding-right: 2.2rem;
+    }
+
+    .nodes li:nth-child(even) {
+      grid-column: 2;
+      justify-self: start;
+      padding-left: 2.2rem;
+    }
+
+    .node {
+      flex: none;
+      width: 60px;
+      height: 60px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      font: 800 1.2rem/1 var(--font);
+      color: var(--text);
+      background: radial-gradient(circle at 35% 30%, var(--panel-2), var(--panel));
+      border: 2px solid var(--tier);
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 18px -2px var(--tier), inset 0 0 12px -4px var(--tier);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .node:hover,
+    .node:focus-visible {
+      transform: scale(1.1);
+      box-shadow: 0 0 28px 0 var(--tier), inset 0 0 14px -2px var(--tier);
+    }
+
+    .node-label {
+      font-weight: 600;
+      color: #E6EEF8;
+      font-size: 1rem;
+      white-space: nowrap;
+    }
+
+    /* ---------- Challenges placeholder ---------- */
+    .panel {
+      max-width: 36rem;
+      margin: 0 auto;
+      padding: 2rem;
+      text-align: center;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    .panel h2 { margin: 0 0 0.5rem; font-size: 1.4rem; }
+    .panel p { margin: 0; color: var(--text-muted); line-height: 1.5; }
+
+    /* ---------- Lesson modal ---------- */
+    dialog {
+      width: min(560px, calc(100vw - 2rem));
+      max-height: calc(100vh - 2rem);
+      padding: 0;
+      color: var(--text);
+      background: var(--panel);
+      border: 1px solid var(--tier, var(--neon-blue));
+      border-radius: 16px;
+      box-shadow: 0 0 44px -6px var(--tier, var(--neon-blue));
+    }
+
+    dialog[data-tier="easy"]   { --tier: var(--neon-blue); }
+    dialog[data-tier="medium"] { --tier: var(--neon-orange); }
+    dialog[data-tier="hard"]   { --tier: var(--neon-violet); }
+
+    dialog::backdrop {
+      background: rgba(2, 3, 8, 0.72);
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-body {
+      display: grid;
+      gap: 1rem;
+      padding: 1.5rem;
+    }
+
+    .modal-image {
+      aspect-ratio: 16 / 9;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 1rem;
+      color: var(--text-dim);
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background:
+        radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--tier) 22%, transparent), transparent 65%),
+        var(--panel-2);
+      border: 1px dashed color-mix(in srgb, var(--tier) 55%, transparent);
+      border-radius: 10px;
+    }
+
+    .modal-kicker {
+      margin: 0;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--tier);
+    }
+
+    .modal-title {
+      margin: 0.2rem 0 0;
+      font-size: 1.6rem;
+      font-weight: 800;
+    }
+
+    .modal-objective {
+      margin: 0;
+      font-size: 1.05rem;
+      line-height: 1.55;
+      color: var(--text-muted);
+    }
+
+    .modal-note {
+      min-height: 1.4rem;
+      margin: 0;
+      color: var(--neon-orange);
+      font-weight: 600;
+    }
+
+    .modal-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      min-height: var(--tap);
+      min-width: 8rem;
+      padding: 0 1.4rem;
+      font: inherit;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .btn-ghost {
+      color: var(--neon-orange);
+      background: transparent;
+      border: 1px solid var(--neon-orange);
+    }
+
+    .btn-ghost:hover { box-shadow: 0 0 14px rgba(255, 106, 19, 0.4); }
+
+    .btn-primary {
+      color: #00121C;
+      background: var(--neon-blue);
+      border: 1px solid var(--neon-blue);
+      box-shadow: 0 0 16px rgba(0, 183, 255, 0.5);
+    }
+
+    .btn-primary:hover { box-shadow: 0 0 26px rgba(0, 183, 255, 0.75); }
+
+    /* ---------- Narrow screens ---------- */
+    @media (max-width: 600px) {
+      .topnav { justify-content: center; }
+      .tab { min-width: 6rem; padding: 0 0.8rem; }
+
+      /* Single column: the spine moves to the left edge and all nodes stack on it. */
+      .nodes { grid-template-columns: minmax(0, 1fr); }
+      .nodes::before { left: 29px; }
+      .nodes li,
+      .nodes li:nth-child(odd),
+      .nodes li:nth-child(even) {
+        grid-column: 1;
+        justify-self: start;
+        flex-direction: row;
+        padding: 0;
+      }
+      .node { width: 58px; height: 58px; }
+      .node-label { white-space: normal; }
+      .modal-actions .btn { flex: 1 1 8rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .node, .tab, .btn { transition: none; }
+      .node:hover, .node:focus-visible { transform: none; }
+    }
+  </style>
 </head>
 <body>
-  <div class="app">
 
-    <aside class="sidebar" aria-label="Mission navigation">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true">ZG</span>
-        <span>Zero-G Academy</span>
+  <header class="topnav">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">ZG</span>
+      <span>Zero-G Academy</span>
+    </div>
+    <nav aria-label="Main">
+      <div class="tabs" role="group" aria-label="Sections">
+        <button class="tab" type="button" data-view="home" aria-current="page">Home</button>
+        <button class="tab" type="button" data-view="challenges">Challenges</button>
       </div>
-      <nav aria-labelledby="nav-heading">
-        <p id="nav-heading" class="zg-label">Missions</p>
-        <ul id="mission-nav" class="nav-list"></ul>
-      </nav>
-      <p class="sidebar-foot zg-label">Data: NASA DONKI</p>
-    </aside>
+    </nav>
+  </header>
 
-    <main class="main">
-      <header class="topbar">
-        <h1>Mission Control</h1>
-        <p id="progress" class="zg-label">0 / 3 complete</p>
-      </header>
+  <main class="main">
 
-      <p id="status-message" class="status-message" role="status" aria-live="polite"></p>
+    <section id="view-home" class="view" aria-labelledby="home-title">
+      <div class="page-head">
+        <h1 id="home-title">Lesson Plan</h1>
+        <p>Follow the path, one node at a time. Tap a number to start a lesson.</p>
+      </div>
 
-      <section class="mission-grid" id="mission-grid" aria-label="Missions"></section>
+      <div id="lesson-plan"></div>
+    </section>
 
-      <section class="viewport-wrap" aria-label="Game viewport">
-        <div class="viewport-bar">
-          <span class="zg-label">Now playing</span>
-          <span id="viewport-title" class="viewport-title">None</span>
-        </div>
-        <div class="viewport">
-          <div id="viewport-empty" class="viewport-empty">
-            <p>Pick an unlocked mission to launch.</p>
-          </div>
-          <iframe
-            id="mission-viewport"
-            title="Mission viewport"
-            sandbox="allow-scripts allow-same-origin"
-            hidden></iframe>
-        </div>
-      </section>
-    </main>
+    <section id="view-challenges" class="view" aria-labelledby="challenges-title" hidden>
+      <div class="page-head">
+        <h1 id="challenges-title">Challenges</h1>
+      </div>
+      <div class="panel">
+        <h2>Coming soon</h2>
+        <p>Challenges will test what you learned on the lesson path. Check back after your first few lessons.</p>
+      </div>
+    </section>
 
-  </div>
+  </main>
 
-  <script type="module">
-    import { initDashboard } from "./src/core/dashboard-ui.js";
-    initDashboard();
+  <dialog id="lesson-modal" aria-labelledby="modal-title">
+    <div class="modal-body">
+      <div id="modal-image" class="modal-image" role="img" aria-label="Placeholder image">
+        Image coming soon
+      </div>
+      <div>
+        <p id="modal-kicker" class="modal-kicker"></p>
+        <h2 id="modal-title" class="modal-title"></h2>
+      </div>
+      <p id="modal-objective" class="modal-objective"></p>
+      <p id="modal-note" class="modal-note" role="status" aria-live="polite"></p>
+      <div class="modal-actions">
+        <button id="modal-close" class="btn btn-ghost" type="button">Close</button>
+        <button id="modal-study" class="btn btn-primary" type="button">Study</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    (() => {
+      /** Lesson data. Tier decides grouping and colour. Numbers are the path order. */
+      const TIER_META = {
+        easy:   { label: "Easy",   range: "Nodes 1–4" },
+        medium: { label: "Medium", range: "Nodes 5–8" },
+        hard:   { label: "Hard",   range: "Nodes 9–12" },
+      };
+
+      const LESSONS = [
+        { id: 1,  tier: "easy",   title: "Gravity",
+          objective: "Learn why objects fall and how gravity pulls everything toward a planet." },
+        { id: 2,  tier: "easy",   title: "Food in Space",
+          objective: "Discover how astronauts pack, heat and eat meals when there is no kitchen." },
+        { id: 3,  tier: "easy",   title: "Breathing Air",
+          objective: "Find out how a spacecraft supplies oxygen and removes carbon dioxide." },
+        { id: 4,  tier: "easy",   title: "Floating Physics",
+          objective: "See how Newton's first law keeps objects moving in orbit without fuel." },
+        { id: 5,  tier: "medium", title: "Radiation",
+          objective: "Learn what space radiation is and why astronauts need protection from it." },
+        { id: 6,  tier: "medium", title: "Magnetic Shields",
+          objective: "See how Earth's magnetic field deflects charged particles from the Sun." },
+        { id: 7,  tier: "medium", title: "Solar Flares",
+          objective: "Understand how the Sun releases sudden bursts of energy and how we track them." },
+        { id: 8,  tier: "medium", title: "Rocket Thrust",
+          objective: "Discover how rockets push against exhaust gases using Newton's third law." },
+        { id: 9,  tier: "hard",   title: "Black Hole Relativity",
+          objective: "Explore how extreme gravity bends space and slows time near a black hole." },
+        { id: 10, tier: "hard",   title: "Orbital Math",
+          objective: "Use simple formulas to work out how fast a spacecraft must travel to stay in orbit." },
+        { id: 11, tier: "hard",   title: "Escape Velocity",
+          objective: "Calculate the speed needed to break free from a planet's gravity." },
+        { id: 12, tier: "hard",   title: "Gravitational Waves",
+          objective: "Learn how colliding black holes send ripples through spacetime." },
+      ];
+
+      const $ = (id) => document.getElementById(id);
+      const modal = $("lesson-modal");
+      const els = {
+        plan: $("lesson-plan"),
+        kicker: $("modal-kicker"),
+        title: $("modal-title"),
+        objective: $("modal-objective"),
+        image: $("modal-image"),
+        note: $("modal-note"),
+        close: $("modal-close"),
+        study: $("modal-study"),
+      };
+
+      /** Build the roadmap, one section per difficulty tier. */
+      function renderPlan() {
+        for (const [tier, meta] of Object.entries(TIER_META)) {
+          const section = document.createElement("section");
+          section.className = `tier tier-${tier}`;
+          section.setAttribute("aria-labelledby", `tier-${tier}-title`);
+
+          const head = document.createElement("header");
+          head.className = "tier-head";
+          const h2 = document.createElement("h2");
+          h2.id = `tier-${tier}-title`;
+          h2.textContent = meta.label;
+          const range = document.createElement("span");
+          range.textContent = meta.range;
+          head.append(h2, range);
+
+          const list = document.createElement("ol");
+          list.className = "nodes";
+
+          LESSONS.filter((l) => l.tier === tier).forEach((lesson) => {
+            const item = document.createElement("li");
+
+            const node = document.createElement("button");
+            node.type = "button";
+            node.className = "node";
+            node.textContent = String(lesson.id);
+            node.setAttribute("aria-label", `Lesson ${lesson.id}: ${lesson.title} (${meta.label})`);
+            node.addEventListener("click", () => openLesson(lesson));
+
+            const label = document.createElement("span");
+            label.className = "node-label";
+            label.textContent = lesson.title;
+
+            item.append(node, label);
+            list.append(item);
+          });
+
+          section.append(head, list);
+          els.plan.append(section);
+        }
+      }
+
+      /** Open the modal for a lesson. Routing to the simulation comes later. */
+      function openLesson(lesson) {
+        modal.dataset.tier = lesson.tier;
+        els.kicker.textContent = `Lesson ${lesson.id} · ${TIER_META[lesson.tier].label}`;
+        els.title.textContent = lesson.title;
+        els.objective.textContent = lesson.objective;
+        els.image.setAttribute("aria-label", `Placeholder image for ${lesson.title}`);
+        els.note.textContent = "";
+
+        els.study.onclick = () => {
+          // TODO(simulation): route to the real simulation for lesson.id.
+          els.note.textContent = `The ${lesson.title} simulation is coming soon.`;
+        };
+
+        modal.showModal();
+      }
+
+      els.close.addEventListener("click", () => modal.close());
+
+      // Click on the backdrop (the dialog itself, since its content is wrapped) closes the modal.
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) modal.close();
+      });
+
+      // Top navigation: switch between Home and Challenges.
+      document.querySelectorAll(".tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+          const view = tab.dataset.view;
+          document.querySelectorAll(".tab").forEach((t) => {
+            if (t === tab) t.setAttribute("aria-current", "page");
+            else t.removeAttribute("aria-current");
+          });
+          document.querySelectorAll(".view").forEach((section) => {
+            section.hidden = section.id !== `view-${view}`;
+          });
+        });
+      });
+
+      renderPlan();
+    })();
   </script>
 </body>
 </html>

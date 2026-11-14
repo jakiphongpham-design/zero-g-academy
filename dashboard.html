@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Dashboard | Zero-G Academy</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="lesson-data.js"></script>
+  <script src="lesson-art.js"></script>
+</head>
+<body class="has-scene">
+
+  <!-- Background scene: deep space, a cratered Moon and a red Mars horizon (layered SVG) -->
+  <div class="scene" aria-hidden="true">
+    <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="scene-sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#02040E"/>
+          <stop offset=".6" stop-color="#0A1A3F"/>
+          <stop offset="1" stop-color="#2A0F0A"/>
+        </linearGradient>
+        <radialGradient id="scene-glow" cx="50%" cy="100%" r="60%">
+          <stop offset="0" stop-color="#FF7A1A" stop-opacity=".5"/>
+          <stop offset="1" stop-color="#FF7A1A" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="scene-moon" cx="40%" cy="35%" r="70%">
+          <stop offset="0" stop-color="#F4F6FA"/>
+          <stop offset=".6" stop-color="#9AA3B5"/>
+          <stop offset="1" stop-color="#3A4256"/>
+        </radialGradient>
+        <linearGradient id="scene-mars-far" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#8A3418"/>
+          <stop offset="1" stop-color="#3A120A"/>
+        </linearGradient>
+        <linearGradient id="scene-mars-near" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#C4502A"/>
+          <stop offset="1" stop-color="#5A1A0C"/>
+        </linearGradient>
+      </defs>
+      <rect width="1600" height="900" fill="url(#scene-sky)"/>
+      <rect width="1600" height="900" fill="url(#scene-glow)"/>
+      <g fill="#FFFFFF" opacity=".8">
+        <circle cx="120" cy="90" r="1.6"/><circle cx="310" cy="210" r="1.2"/><circle cx="520" cy="60" r="1.4"/>
+        <circle cx="740" cy="170" r="1"/><circle cx="960" cy="90" r="1.5"/><circle cx="1120" cy="260" r="1.1"/>
+        <circle cx="1480" cy="80" r="1.4"/><circle cx="1540" cy="330" r="1"/><circle cx="60" cy="380" r="1.1"/>
+        <circle cx="430" cy="360" r="1"/><circle cx="860" cy="420" r="1.2"/><circle cx="1010" cy="470" r="1"/>
+      </g>
+      <!-- Moon with craters -->
+      <circle cx="1310" cy="190" r="150" fill="url(#scene-moon)" opacity=".9"/>
+      <g fill="#5B6378" opacity=".45">
+        <circle cx="1250" cy="160" r="26"/><circle cx="1340" cy="250" r="18"/><circle cx="1280" cy="262" r="12"/>
+        <circle cx="1370" cy="150" r="10"/><circle cx="1215" cy="215" r="8"/><circle cx="1352" cy="98" r="6"/>
+      </g>
+      <!-- Mars horizon, two layers -->
+      <path d="M0 720 Q200 650 420 700 T860 690 T1300 700 T1600 680 V900 H0Z" fill="url(#scene-mars-far)" opacity=".9"/>
+      <path d="M0 780 Q260 720 520 770 T1040 760 T1600 750 V900 H0Z" fill="url(#scene-mars-near)"/>
+      <g fill="#3A120A" opacity=".35">
+        <ellipse cx="300" cy="812" rx="60" ry="10"/><ellipse cx="980" cy="836" rx="90" ry="12"/><ellipse cx="1380" cy="800" rx="46" ry="8"/>
+      </g>
+    </svg>
+  </div>
+
+  <header class="topnav">
+    <a class="brand" href="index.html">
+      <span class="brand-mark" aria-hidden="true">ZG</span>
+      <span>Zero-G Academy</span>
+    </a>
+    <nav aria-label="Main">
+      <ul class="nav-links">
+        <li><a class="nav-link" href="index.html">Home</a></li>
+        <li><a class="nav-link" href="dashboard.html" aria-current="page">Dashboard</a></li>
+        <li><a class="nav-link" href="#profile">Profile</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="dash-layout">
+
+    <aside id="profile" class="profile" aria-labelledby="profile-title">
+      <h2 id="profile-title">Student Profile</h2>
+      <div id="avatar" class="avatar" aria-hidden="true">GC</div>
+      <p id="profile-name" class="profile-name">Guest Cadet</p>
+      <dl class="stat-list">
+        <div class="stat">
+          <dt>Current level</dt>
+          <dd id="stat-level" class="accent">Level 1</dd>
+        </div>
+        <div class="stat">
+          <dt>Time spent</dt>
+          <dd id="stat-time">00:00</dd>
+        </div>
+        <div class="stat">
+          <dt>Lessons done</dt>
+          <dd id="stat-done">0 / 30</dd>
+        </div>
+      </dl>
+      <p id="placement-note" class="small"></p>
+    </aside>
+
+    <main class="dash-main">
+      <div class="dash-head">
+        <h1>Lesson Plan</h1>
+        <p>Thirty levels in three categories. Finish the three tasks in a level to unlock the next. Tap a number to open it.</p>
+      </div>
+      <div id="tree"></div>
+    </main>
+
+  </div>
+
+  <!-- Lesson detail modal -->
+  <dialog id="lesson-dialog" class="lesson-dialog" aria-labelledby="lesson-title">
+    <div class="modal-body">
+      <div id="lesson-art" class="lesson-art"></div>
+      <div>
+        <p id="lesson-kicker" class="kicker"></p>
+        <h2 id="lesson-title" class="modal-title"></h2>
+      </div>
+      <p id="lesson-description" class="modal-text"></p>
+      <div class="meta-row">
+        <span id="lesson-time" class="pill"></span>
+        <span id="lesson-status" class="pill"></span>
+      </div>
+
+      <div class="task-progress">
+        <p id="task-count" class="task-count">0/3 tasks completed</p>
+        <div class="progress-track" aria-hidden="true"><span id="task-bar"></span></div>
+      </div>
+      <ul id="lesson-submodules" class="submodules" aria-label="Sub-modules"></ul>
+
+      <section id="study-panel" class="study-panel" data-state="idle" hidden>
+        <p class="study-status"><span class="spinner" aria-hidden="true"></span><span id="study-text"></span></p>
+        <div id="study-frame-wrap" class="study-frame" hidden>
+          <iframe id="study-frame" title="Lesson simulation" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+        <button id="study-retry" class="btn btn-orange-ghost" type="button" hidden>Check again</button>
+      </section>
+
+      <div class="modal-actions">
+        <button id="lesson-close" class="btn btn-orange-ghost" type="button">Close</button>
+        <button id="study-button" class="btn btn-cyan" type="button">Study</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    (() => {
+      const PROFILE_KEY = "zga.profile.v1";
+      const TASKS_KEY = "zga.tasks.v1";
+      const GUEST_NAME = "Guest Cadet";
+      const MISSION_ONE_URL = "mission1.html";
+
+      const { CATEGORIES, LESSONS, TASK_KEYS } = window.ZGA_LESSONS;
+      const ART = window.ZGA_ART;
+      const TASK_LABELS = { video: "Video", quiz: "Quiz", simulation: "Simulation" };
+      const STATUS_TEXT = { done: "Completed", current: "Up next", locked: "Locked" };
+
+      const $ = (id) => document.getElementById(id);
+      const dialog = $("lesson-dialog");
+      let artCounter = 0;
+      let activeId = null;
+
+      /* ---------- Storage (fails quietly if blocked) ---------- */
+      function readJSON(key, fallback) {
+        try {
+          const value = JSON.parse(localStorage.getItem(key));
+          return value ?? fallback;
+        } catch {
+          return fallback;
+        }
+      }
+
+      function writeJSON(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch {
+          /* blocked storage: progress lasts for this page view only */
+        }
+      }
+
+      /* ---------- Progress ---------- */
+      // Stored as { "<lessonId>": ["video", "quiz", ...] }
+      let progress = readJSON(TASKS_KEY, {});
+
+      function doneTasks(id) {
+        const list = Array.isArray(progress[id]) ? progress[id] : [];
+        return TASK_KEYS.filter((key) => list.includes(key));
+      }
+
+      function isLessonDone(id) {
+        return doneTasks(id).length === TASK_KEYS.length;
+      }
+
+      /** Sequential rule: done if all tasks are complete, current if first not done, else locked. */
+      function statusOf(id) {
+        if (isLessonDone(id)) return "done";
+        const firstOpen = LESSONS.find((lesson) => !isLessonDone(lesson.id));
+        return firstOpen && firstOpen.id === id ? "current" : "locked";
+      }
+
+      function toggleTask(id, key) {
+        if (statusOf(id) === "locked") return;
+        const current = doneTasks(id);
+        const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key];
+        progress = { ...progress, [id]: next };
+        writeJSON(TASKS_KEY, progress);
+        renderTree();
+        renderProfile();
+        renderModalState();
+      }
+
+      /* ---------- Art ---------- */
+      /** Return a copy of a lesson's SVG with unique gradient and filter ids. */
+      function artFor(id, { mini = false } = {}) {
+        artCounter += 1;
+        let svg = ART[id].replace(/__ID__/g, `z${id}-${artCounter}`);
+        if (mini) svg = svg.replace("<svg ", '<svg preserveAspectRatio="xMidYMid slice" ');
+        return svg;
+      }
+
+      /* ---------- Profile ---------- */
+      function readProfile() {
+        return readJSON(PROFILE_KEY, {});
+      }
+
+      function initialsFor(name) {
+        const letters = name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase());
+        return letters.join("") || "GC";
+      }
+
+      function renderProfile() {
+        const profile = readProfile();
+        const name = typeof profile.name === "string" && profile.name.trim() ? profile.name.trim() : GUEST_NAME;
+        const hasLevel = Number.isInteger(profile.placementLevel);
+        const done = LESSONS.filter((lesson) => isLessonDone(lesson.id)).length;
+
+        $("profile-name").textContent = name;
+        $("avatar").textContent = initialsFor(name);
+        $("stat-level").textContent = `Level ${hasLevel ? profile.placementLevel : 1}`;
+        $("stat-done").textContent = `${done} / ${LESSONS.length}`;
+        $("placement-note").textContent = hasLevel
+          ? `Starting level from your placement test (${profile.placementScore} of 5 right).`
+          : "Level 1 until you take the placement test on the home page.";
+      }
+
+      /* ---------- Live time tracker ---------- */
+      /** Format a number of seconds as MM:SS. Minutes keep counting past 59. */
+      function formatMMSS(totalSeconds) {
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+      }
+
+      /**
+       * Live session timer. Starts at 00:00 and adds one second every tick.
+       * It pauses while the tab is hidden, so it counts only time the cadet is looking at the page.
+       */
+      function startTimeTracker() {
+        const output = $("stat-time");
+        let elapsed = 0;
+        output.textContent = formatMMSS(elapsed);
+
+        const timerId = setInterval(() => {
+          if (document.hidden) return;
+          elapsed += 1;
+          output.textContent = formatMMSS(elapsed);
+        }, 1000);
+
+        window.addEventListener("pagehide", () => clearInterval(timerId));
+      }
+
+      /* ---------- Roadmap ---------- */
+      function renderTree() {
+        const tree = $("tree");
+        tree.replaceChildren();
+
+        for (const category of Object.values(CATEGORIES)) {
+          const section = document.createElement("section");
+          section.className = `tree-group ${category.key}`;
+          section.setAttribute("aria-labelledby", `zone-${category.key}`);
+
+          const head = document.createElement("header");
+          head.className = "group-head";
+          const tag = document.createElement("p");
+          tag.className = "category-tag";
+          tag.textContent = `Category ${category.numerals} · Nodes ${category.range[0]}–${category.range[1]}`;
+          const h2 = document.createElement("h2");
+          h2.id = `zone-${category.key}`;
+          h2.textContent = category.title;
+          const meta = document.createElement("span");
+          meta.textContent = `${category.difficulty} · ${category.window} per lesson`;
+          head.append(tag, h2, meta);
+
+          const list = document.createElement("ol");
+          list.className = "nodes";
+
+          LESSONS.filter((lesson) => lesson.category === category.key).forEach((lesson) => {
+            const status = statusOf(lesson.id);
+            const doneCount = doneTasks(lesson.id).length;
+
+            const item = document.createElement("li");
+
+            const node = document.createElement("button");
+            node.type = "button";
+            node.className = `node is-${status}`;
+            node.setAttribute(
+              "aria-label",
+              `Lesson ${lesson.id}: ${lesson.title}, ${STATUS_TEXT[status]}, ${doneCount} of 3 tasks done, about ${lesson.minutes} minutes`,
+            );
+            node.addEventListener("click", () => openLesson(lesson.id));
+
+            const art = document.createElement("span");
+            art.className = "node-art";
+            art.setAttribute("aria-hidden", "true");
+            art.innerHTML = artFor(lesson.id, { mini: true });
+
+            const number = document.createElement("span");
+            number.className = "node-no";
+            number.textContent = String(lesson.id);
+
+            node.append(art, number);
+
+            const label = document.createElement("span");
+            label.className = "node-label";
+            if (lesson.flag) {
+              const flag = document.createElement("span");
+              flag.className = "flag";
+              flag.textContent = lesson.flag;
+              label.append(flag);
+            }
+            label.append(document.createTextNode(lesson.title));
+            const time = document.createElement("small");
+            time.textContent = `${lesson.minutes} mins · ${doneCount}/3 · ${STATUS_TEXT[status]}`;
+            label.append(time);
+
+            item.append(node, label);
+            list.append(item);
+          });
+
+          section.append(head, list);
+          tree.append(section);
+        }
+      }
+
+      /* ---------- Lesson modal ---------- */
+      function lessonById(id) {
+        return LESSONS.find((lesson) => lesson.id === id);
+      }
+
+      function openLesson(id) {
+        const lesson = lessonById(id);
+        const category = CATEGORIES[lesson.category];
+        activeId = id;
+
+        dialog.dataset.tier = category.key;
+        $("lesson-art").innerHTML = artFor(id);
+        $("lesson-kicker").textContent = `Lesson ${id} · ${category.title} · ${category.difficulty}`;
+        $("lesson-title").textContent = lesson.title;
+        $("lesson-description").textContent = lesson.objective;
+        $("lesson-time").textContent = `Estimated time: ${lesson.minutes} mins`;
+
+        resetStudy();
+        renderModalState();
+        dialog.showModal();
+      }
+
+      /** Refresh status, progress bar and sub-module list for the open lesson. */
+      function renderModalState() {
+        if (activeId === null) return;
+        const lesson = lessonById(activeId);
+        const status = statusOf(activeId);
+        const done = doneTasks(activeId);
+        const locked = status === "locked";
+
+        $("lesson-status").textContent = STATUS_TEXT[status];
+        $("task-count").textContent = `${done.length}/${TASK_KEYS.length} tasks completed`;
+        $("task-bar").style.width = `${(done.length / TASK_KEYS.length) * 100}%`;
+        $("study-button").disabled = locked;
+
+        $("lesson-submodules").replaceChildren(
+          ...TASK_KEYS.map((key) => {
+            const isDone = done.includes(key);
+            const li = document.createElement("li");
+
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "task";
+            button.disabled = locked;
+            button.setAttribute("aria-pressed", String(isDone));
+            button.addEventListener("click", () => toggleTask(activeId, key));
+
+            const type = document.createElement("span");
+            type.className = `type type-${key}`;
+            type.textContent = TASK_LABELS[key];
+            const title = document.createElement("span");
+            title.className = "task-title";
+            title.textContent = lesson.subs[key];
+            const state = document.createElement("span");
+            state.className = isDone ? "state is-done" : "state";
+            state.textContent = isDone ? "Done" : "To do";
+
+            button.append(type, title, state);
+            li.append(button);
+            return li;
+          }),
+        );
+      }
+
+      /* ---------- Study routing ---------- */
+      function setStudy(state, text) {
+        const panel = $("study-panel");
+        panel.dataset.state = state;
+        panel.hidden = false;
+        $("study-text").textContent = text;
+      }
+
+      function resetStudy() {
+        const frame = $("study-frame");
+        frame.removeAttribute("src");
+        $("study-frame-wrap").hidden = true;
+        $("study-retry").hidden = true;
+        $("study-panel").hidden = true;
+        $("study-panel").dataset.state = "idle";
+        $("study-text").textContent = "";
+      }
+
+      /** Check whether a file is served. Browsers block fetch on file://, so treat that as missing. */
+      async function fileAvailable(url) {
+        if (location.protocol === "file:") return false;
+        try {
+          const response = await fetch(url, { method: "HEAD", cache: "no-store" });
+          return response.ok;
+        } catch {
+          return false;
+        }
+      }
+
+      async function startStudy() {
+        if (activeId === null || statusOf(activeId) === "locked") return;
+        const id = activeId;
+        const lesson = lessonById(id);
+
+        // Only lesson 1 has a built simulation for now. Others show a coming-soon note.
+        if (id !== 1) {
+          $("study-frame-wrap").hidden = true;
+          setStudy("idle", `The ${lesson.title} simulation is coming soon.`);
+          return;
+        }
+
+        $("study-button").disabled = true;
+        $("study-retry").hidden = true;
+        $("study-frame-wrap").hidden = true;
+        setStudy("loading", `Checking for ${MISSION_ONE_URL}…`);
+
+        const available = await fileAvailable(MISSION_ONE_URL);
+        $("study-button").disabled = statusOf(id) === "locked";
+        if (activeId !== id) return; // the cadet moved to another lesson meanwhile
+
+        if (available) {
+          $("study-frame").src = MISSION_ONE_URL;
+          $("study-frame-wrap").hidden = false;
+          setStudy("ready", "Simulation loaded below.");
+        } else {
+          $("study-frame").removeAttribute("src");
+          $("study-retry").hidden = false;
+          const hint =
+            location.protocol === "file:"
+              ? `Open this page through a local server (for example: python -m http.server) to load ${MISSION_ONE_URL}.`
+              : `${MISSION_ONE_URL} is not on this branch yet. It will load here once it is merged.`;
+          setStudy("missing", hint);
+        }
+      }
+
+      $("study-button").addEventListener("click", startStudy);
+      $("study-retry").addEventListener("click", startStudy);
+      $("lesson-close").addEventListener("click", () => dialog.close());
+
+      dialog.addEventListener("close", () => {
+        $("study-frame").removeAttribute("src"); // stop any running simulation
+        activeId = null;
+      });
+      dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) dialog.close();
+      });
+
+      renderProfile();
+      startTimeTracker();
+      renderTree();
+    })();
+  </script>
+</body>
+</html>

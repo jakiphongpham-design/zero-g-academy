@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Zero-G Academy</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="topnav">
+    <a class="brand" href="index.html">
+      <span class="brand-mark" aria-hidden="true">ZG</span>
+      <span>Zero-G Academy</span>
+    </a>
+    <nav aria-label="Main">
+      <ul class="nav-links">
+        <li><a class="nav-link" href="#about">About Us</a></li>
+        <li><a class="nav-link" href="#contact">Contact Us</a></li>
+        <li><button id="open-signup" class="btn btn-cyan" type="button">Sign Up</button></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <h1 id="hero-title">Zero-G Academy</h1>
+      <p class="tagline">Learn real space science by floating through it. Missions, quizzes and simulations for curious cadets aged 7 to 12.</p>
+      <div class="hero-actions">
+        <button id="hero-signup" class="btn btn-cyan" type="button">Sign Up</button>
+        <a class="btn btn-orange-ghost" href="dashboard.html">See the dashboard</a>
+      </div>
+    </section>
+
+    <section id="about" class="section" aria-labelledby="about-title">
+      <h2 id="about-title">About Us</h2>
+      <div class="card-grid">
+        <article class="card">
+          <h3>What we teach</h3>
+          <p>Short lessons about the people who fly in space and the spaceships that carry them, with a quiz and a simulation for every lesson.</p>
+        </article>
+        <article class="card">
+          <h3>How it works</h3>
+          <p>Enter your cadet name and take a five-question placement test. Your score sets your starting level, then you follow the lesson path one node at a time.</p>
+        </article>
+        <article class="card">
+          <h3>Real space numbers</h3>
+          <p>Placement questions use values from NASA's Planetary Fact Sheet, so every fact you learn is one scientists actually use.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer id="contact" class="site-footer" aria-labelledby="contact-title">
+    <div class="inner">
+      <h2 id="contact-title">Contact Us</h2>
+      <p>Questions, feedback or a teacher account request? Email <strong>contact@example.com</strong> (placeholder address).</p>
+      <p class="small">Zero-G Academy is a prototype. Quiz data: NASA Planetary Fact Sheet.</p>
+      <p class="small">Background: Mars true-colour image by ESA &amp; MPS for OSIRIS Team MPS/UPD/LAM/IAA/RSSD/INTA/UPM/DASP/IDA, CC BY-SA.</p>
+    </div>
+  </footer>
+
+  <!-- Sign-up: cadet name, then placement test (5 questions) -->
+  <dialog id="placement-dialog" class="quiz-dialog" aria-labelledby="placement-title">
+    <div class="quiz-body">
+      <p class="kicker">Sign up</p>
+      <h2 id="placement-title" class="modal-title">Find your starting level</h2>
+
+      <!-- Step 1: cadet name -->
+      <form id="name-view" class="name-form" novalidate>
+        <label for="cadet-name" class="field-label">Enter Cadet Name</label>
+        <input id="cadet-name" class="text-input" type="text" maxlength="20"
+               autocomplete="nickname" placeholder="For example, Nova"
+               aria-describedby="name-hint name-error">
+        <p id="name-hint" class="quiz-source">2 to 20 letters or numbers.</p>
+        <p id="name-error" class="quiz-feedback bad" role="alert"></p>
+        <div class="modal-actions">
+          <button id="name-close" class="btn btn-orange-ghost" type="button">Close</button>
+          <button id="name-start" class="btn btn-cyan" type="submit">Start test</button>
+        </div>
+      </form>
+
+      <!-- Step 2: question view -->
+      <div id="quiz-view" hidden>
+        <div class="quiz-progress" aria-hidden="true"><span id="quiz-bar"></span></div>
+        <p id="quiz-count" class="quiz-count"></p>
+        <p id="quiz-prompt" class="quiz-question"></p>
+        <ul id="quiz-choices" class="choices"></ul>
+        <p id="quiz-feedback" class="quiz-feedback" role="status" aria-live="polite"></p>
+        <p id="quiz-source" class="quiz-source"></p>
+        <div class="modal-actions">
+          <button id="quiz-close" class="btn btn-orange-ghost" type="button">Close</button>
+          <button id="quiz-next" class="btn btn-cyan" type="button" disabled>Next</button>
+        </div>
+      </div>
+
+      <!-- Step 3: result -->
+      <div id="result-view" hidden>
+        <p class="result-level" id="result-level"></p>
+        <p class="result-text" id="result-text"></p>
+        <div class="modal-actions">
+          <button id="result-retry" class="btn btn-orange-ghost" type="button">Try again</button>
+          <a id="result-go" class="btn btn-cyan" href="dashboard.html">Go to dashboard</a>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    (() => {
+      const PROFILE_KEY = "zga.profile.v1";
+      const NAME_MIN = 2;
+      const NAME_MAX = 20;
+
+      /**
+       * Five questions, ordered easy to hard. Values are from the NASA Planetary Fact Sheet
+       * (metric): gravity in m/s², diameter in km, distance from the Sun in million km.
+       */
+      const QUESTIONS = [
+        {
+          prompt: "Which planet is closest to the Sun?",
+          options: ["Venus", "Mercury", "Earth", "Mars"],
+          answer: 1,
+          fact: "Mercury's distance from the Sun is about 57.9 million km.",
+        },
+        {
+          prompt: "Which planet has the largest diameter?",
+          options: ["Saturn", "Neptune", "Jupiter", "Earth"],
+          answer: 2,
+          fact: "Jupiter's diameter is 142,984 km, about 11 times Earth's 12,756 km.",
+        },
+        {
+          prompt: "Mars's surface gravity is about what fraction of Earth's?",
+          options: ["0.12", "0.75", "0.38", "1.5"],
+          answer: 2,
+          fact: "Mars: 3.7 m/s². Earth: 9.8 m/s². 3.7 ÷ 9.8 ≈ 0.38.",
+        },
+        {
+          prompt: "Which planet has the strongest surface gravity?",
+          options: ["Saturn", "Neptune", "Venus", "Jupiter"],
+          answer: 3,
+          fact: "Jupiter: 23.1 m/s². Earth: 9.8 m/s².",
+        },
+        {
+          prompt: "About how many times farther from the Sun is Neptune than Earth?",
+          options: ["3 times", "10 times", "30 times", "100 times"],
+          answer: 2,
+          fact: "Neptune: 4,515 million km. Earth: 149.6 million km. Ratio ≈ 30.",
+        },
+      ];
+
+      const $ = (id) => document.getElementById(id);
+      const dialog = $("placement-dialog");
+      const el = {
+        nameView: $("name-view"),
+        nameInput: $("cadet-name"),
+        nameError: $("name-error"),
+        bar: $("quiz-bar"),
+        count: $("quiz-count"),
+        prompt: $("quiz-prompt"),
+        choices: $("quiz-choices"),
+        feedback: $("quiz-feedback"),
+        source: $("quiz-source"),
+        next: $("quiz-next"),
+        quizView: $("quiz-view"),
+        resultView: $("result-view"),
+        resultLevel: $("result-level"),
+        resultText: $("result-text"),
+      };
+
+      let index = 0;
+      let score = 0;
+      let answered = false;
+
+      /** Score to level: one level per correct answer, minimum Level 1. */
+      function levelFromScore(s) {
+        return Math.min(5, Math.max(1, s));
+      }
+
+      /** Trim, collapse spaces, and check the cadet name. Returns the clean name or null. */
+      function cleanName(raw) {
+        const name = raw.trim().replace(/\s+/g, " ");
+        const valid = name.length >= NAME_MIN && name.length <= NAME_MAX && /^[\p{L}\p{N} '-]+$/u.test(name);
+        return valid ? name : null;
+      }
+
+      /** Read the stored profile; storage can be blocked, so fail to an empty object. */
+      function readProfile() {
+        try {
+          return JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
+        } catch {
+          return {};
+        }
+      }
+
+      /** Merge fields into the stored profile. Storage can be blocked; fail quietly. */
+      function saveProfile(fields) {
+        try {
+          localStorage.setItem(PROFILE_KEY, JSON.stringify({ ...readProfile(), ...fields }));
+        } catch {
+          /* private browsing or blocked storage: the dashboard falls back to a guest name */
+        }
+      }
+
+      /** Step 1: open the sign-up modal at the name field, pre-filled with any saved name. */
+      function openSignup() {
+        el.nameView.hidden = false;
+        el.quizView.hidden = true;
+        el.resultView.hidden = true;
+        el.nameError.textContent = "";
+        el.nameInput.setAttribute("aria-invalid", "false");
+        el.nameInput.value = readProfile().name || "";
+        dialog.showModal();
+        el.nameInput.focus();
+      }
+
+      /** Step 2: start the five questions. */
+      function startQuestions() {
+        index = 0;
+        score = 0;
+        answered = false;
+        el.nameView.hidden = true;
+        el.quizView.hidden = false;
+        el.resultView.hidden = true;
+        showQuestion();
+      }
+
+      function submitName(event) {
+        event.preventDefault();
+        const name = cleanName(el.nameInput.value);
+        if (!name) {
+          el.nameError.textContent = "Please enter 2 to 20 letters or numbers.";
+          el.nameInput.setAttribute("aria-invalid", "true");
+          el.nameInput.focus();
+          return;
+        }
+        el.nameInput.setAttribute("aria-invalid", "false");
+        saveProfile({ name });
+        startQuestions();
+      }
+
+      function showQuestion() {
+        const q = QUESTIONS[index];
+        answered = false;
+        el.bar.style.width = `${(index / QUESTIONS.length) * 100}%`;
+        el.count.textContent = `Question ${index + 1} of ${QUESTIONS.length}`;
+        el.prompt.textContent = q.prompt;
+        el.feedback.textContent = "";
+        el.feedback.className = "quiz-feedback";
+        el.source.textContent = "";
+        el.next.disabled = true;
+        el.next.textContent = index === QUESTIONS.length - 1 ? "See my level" : "Next";
+
+        el.choices.replaceChildren(
+          ...q.options.map((text, i) => {
+            const li = document.createElement("li");
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "choice";
+            btn.textContent = text;
+            btn.addEventListener("click", () => choose(i));
+            li.append(btn);
+            return li;
+          }),
+        );
+      }
+
+      function choose(optionIndex) {
+        if (answered) return;
+        answered = true;
+        const q = QUESTIONS[index];
+        const buttons = [...el.choices.querySelectorAll(".choice")];
+        buttons.forEach((b) => (b.disabled = true));
+
+        const correct = optionIndex === q.answer;
+        if (correct) score += 1;
+
+        buttons[q.answer].classList.add("is-correct");
+        if (!correct) buttons[optionIndex].classList.add("is-wrong");
+
+        el.feedback.textContent = correct ? "Correct!" : `Not quite. The answer is ${q.options[q.answer]}.`;
+        el.feedback.className = `quiz-feedback ${correct ? "ok" : "bad"}`;
+        el.source.textContent = `Source: NASA Planetary Fact Sheet. ${q.fact}`;
+        el.next.disabled = false;
+        el.next.focus();
+      }
+
+      function nextStep() {
+        if (!answered) return;
+        if (index < QUESTIONS.length - 1) {
+          index += 1;
+          showQuestion();
+        } else {
+          showResult();
+        }
+      }
+
+      function showResult() {
+        const level = levelFromScore(score);
+        el.bar.style.width = "100%";
+        el.quizView.hidden = true;
+        el.resultView.hidden = false;
+        el.resultLevel.textContent = `Level ${level}`;
+        el.resultText.textContent =
+          `You got ${score} of ${QUESTIONS.length} right, so you start at Level ${level}. ` +
+          (score === QUESTIONS.length ? "Outstanding, cadet!" : "Every explorer starts somewhere. Let's go!");
+
+        saveProfile({ placementScore: score, placementLevel: level, takenAt: new Date().toISOString() });
+      }
+
+      el.nameView.addEventListener("submit", submitName);
+      $("name-close").addEventListener("click", () => dialog.close());
+      $("open-signup").addEventListener("click", openSignup);
+      $("hero-signup").addEventListener("click", openSignup);
+      el.next.addEventListener("click", nextStep);
+      $("quiz-close").addEventListener("click", () => dialog.close());
+      $("result-retry").addEventListener("click", startQuestions);
+
+      // Backdrop click closes the dialog (the dialog element is the backdrop target).
+      dialog.addEventListener("click", (event) => {
+        if (event.target === dialog) dialog.close();
+      });
+    })();
+  </script>
+</body>
+</html>

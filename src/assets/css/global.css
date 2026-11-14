@@ -1,0 +1,64 @@
+/*
+ * global.css — Zero-G Academy design tokens
+ * Hybrid system: "SpaceX Minimalism" base + playful neon/safety-orange accents.
+ * Source of truth: SYSTEM_ARCHITECTURE.md §2.2
+ * Greyscale for information, colour for action.
+ */
+
+:root {
+  /* Surfaces */
+  --zg-bg:            #000000;   /* page background */
+  --zg-surface:       #0B0D10;   /* cards, panels */
+  --zg-surface-2:     #14171C;   /* raised / hover */
+  --zg-border:        #2A2F36;   /* 1px hairlines */
+  --zg-border-strong: #5A616B;
+
+  /* Typography colours */
+  --zg-text:          #FFFFFF;
+  --zg-text-muted:    #A7ADB5;
+  --zg-text-dim:      #6B727C;
+
+  /* Playful accents (actions and highlights only) */
+  --zg-accent-blue:   #00B7FF;   /* primary action: "Launch", "Next" */
+  --zg-accent-orange: #FF6A13;   /* secondary / alert: "Try again", flare warnings */
+  --zg-success:       #3DDC84;   /* mission complete */
+  --zg-locked:        #3A3F46;   /* locked mission cards */
+
+  /* Type */
+  --zg-font: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --zg-font-mono: "JetBrains Mono", Consolas, "Courier New", monospace;
+  --zg-fs-label: 0.75rem;    /* uppercase, letter-spacing 0.16em */
+  --zg-fs-body:  1.125rem;   /* 18px, kid-readable */
+  --zg-fs-h2:    1.75rem;
+  --zg-fs-h1:    2.5rem;
+
+  /* Shape and motion */
+  --zg-radius:      6px;     /* clean, nearly square */
+  --zg-radius-pill: 999px;   /* buttons only */
+  --zg-border-w:    1px;
+  --zg-tap:         48px;    /* minimum touch target */
+  --zg-gap:         1.5rem;
+  --zg-ease:        cubic-bezier(.2, .8, .2, 1);
+  --zg-dur:         180ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --zg-dur: 0ms; }
+}
+
+/* Base reset so every page inherits the same ground and type */
+html, body {
+  margin: 0;
+  background: var(--zg-bg);
+  color: var(--zg-text);
+  font-family: var(--zg-font);
+  font-size: var(--zg-fs-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+label, .zg-label {
+  font-size: var(--zg-fs-label);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--zg-text-muted);
+}

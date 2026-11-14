@@ -482,6 +482,41 @@
         if (event.target === dialog) dialog.close();
       });
 
+      /* ---------- Mission completion (postMessage from game iframes) ---------- */
+      const CLOSE_AFTER_WIN_MS = 1500;
+
+      /**
+       * Mark every task of a lesson done. Idempotent: replaying a finished level
+       * changes nothing, so "Lessons done" only increases on the first win.
+       */
+      function completeLesson(id) {
+        progress = { ...progress, [id]: [...TASK_KEYS] };
+        writeJSON(TASKS_KEY, progress);
+        renderTree();      // roadmap node takes the is-done style
+        renderProfile();   // sidebar "Lessons done" counter
+        renderModalState(); // sub-task labels and "3/3 tasks completed"
+      }
+
+      window.addEventListener("message", (event) => {
+        // Only trust the simulation frame currently in the modal.
+        const frame = $("study-frame");
+        if (!frame.contentWindow || event.source !== frame.contentWindow) return;
+
+        const data = event.data;
+        if (!data || typeof data !== "object" || data.type !== "LEVEL_COMPLETE") return;
+
+        // Mission number maps to lesson id.
+        const id = Number(data.mission);
+        if (!Number.isInteger(id) || !lessonById(id)) return;
+
+        completeLesson(id);
+
+        // Let the cadet see the updated modal, then close it.
+        setTimeout(() => {
+          if (dialog.open && activeId === id) dialog.close();
+        }, CLOSE_AFTER_WIN_MS);
+      });
+
       renderProfile();
       startTimeTracker();
       renderTree();

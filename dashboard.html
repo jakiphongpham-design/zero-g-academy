@@ -136,7 +136,7 @@
       </section>
 
       <div class="modal-actions">
-        <button id="lesson-close" class="btn btn-orange-ghost" type="button">Close</button>
+        <button id="modal-action-btn" class="btn btn-orange-ghost" type="button">Next</button>
         <button id="study-button" class="btn btn-cyan" type="button">Study</button>
       </div>
     </div>
@@ -147,7 +147,16 @@
       const PROFILE_KEY = "zga.profile.v1";
       const TASKS_KEY = "zga.tasks.v1";
       const GUEST_NAME = "Guest Cadet";
-      const MISSION_ONE_URL = "mission1.html";
+      // Mission 1 carousel: simulation, then video, then quiz.
+      // The video uses the /embed/ form because a watch page refuses to load inside an iframe.
+      const mission1Steps = [
+        "mission1.html",
+        "https://www.youtube.com/embed/suQDwZcnJdg",
+        "quiz1.html",
+      ];
+      let currentStepIndex = 0;
+      let sequenceActive = false;  // true while the Mission 1 carousel is running
+      let quizLocked = false;      // true from the quiz step until QUIZ_PASSED
 
       const { CATEGORIES, LESSONS, TASK_KEYS } = window.ZGA_LESSONS;
       const ART = window.ZGA_ART;
@@ -359,6 +368,12 @@
         $("lesson-time").textContent = `Estimated time: ${lesson.minutes} mins`;
 
         resetStudy();
+        sequenceActive = false;
+        quizLocked = false;
+        currentStepIndex = 0;
+        // Lesson 1 waits for Study before Next is available; other lessons close directly.
+        const awaitingStudy = id === 1 && statusOf(id) !== "locked";
+        setAction(awaitingStudy ? "Next" : "Close", !awaitingStudy);
         renderModalState();
         dialog.showModal();
       }
@@ -434,56 +449,112 @@
         }
       }
 
+      function isLocalStep(url) {
+        return !/^https?:\/\//i.test(url);
+      }
+
+      function setAction(text, enabled) {
+        const btn = $("modal-action-btn");
+        btn.textContent = text;
+        btn.disabled = !enabled;
+      }
+
+      /** Load one carousel step into the iframe. Returns false if it could not be shown. */
+      async function showStep(index) {
+        const url = mission1Steps[index];
+        const stepText = `Step ${index + 1} of ${mission1Steps.length}`;
+        $("study-frame-wrap").hidden = true;
+        $("study-retry").hidden = true;
+        setStudy("loading", `${stepText}: loading…`);
+
+        if (isLocalStep(url)) {
+          const available = await fileAvailable(url);
+          if (currentStepIndex !== index || activeId === null) return false;
+          if (!available) {
+            $("study-frame").removeAttribute("src");
+            $("study-retry").hidden = false;
+            const hint =
+              location.protocol === "file:"
+                ? `Open this page through a local server (for example: python -m http.server) to load ${url}.`
+                : `${url} is not on this branch yet. It will load here once it is merged.`;
+            setStudy("missing", hint);
+            return false;
+          }
+        }
+
+        $("study-frame").src = url;
+        $("study-frame-wrap").hidden = false;
+        setStudy("ready", `${stepText} loaded.`);
+        return true;
+      }
+
+      /** Move the carousel to a step and set the action button to match. */
+      async function goToStep(index) {
+        currentStepIndex = index;
+        const isLast = index === mission1Steps.length - 1;
+        quizLocked = isLast;  // the quiz cannot be left until it is passed
+        setAction(isLast ? "Close" : "Next", false);
+        $("study-button").disabled = true;
+
+        const loaded = await showStep(index);
+        if (currentStepIndex !== index || activeId === null) return; // moved on or closed
+        $("study-button").disabled = statusOf(activeId) === "locked";
+
+        if (!loaded) {
+          // Never trap the cadet on a missing file: the button becomes an exit.
+          quizLocked = false;
+          setAction("Close", true);
+        } else if (isLast) {
+          setAction("Close", false);
+        } else {
+          setAction("Next", true);
+        }
+      }
+
       async function startStudy() {
         if (activeId === null || statusOf(activeId) === "locked") return;
         const id = activeId;
         const lesson = lessonById(id);
 
-        // Only lesson 1 has a built simulation for now. Others show a coming-soon note.
+        // Only lesson 1 has a carousel for now. Others show a coming-soon note.
         if (id !== 1) {
           $("study-frame-wrap").hidden = true;
           setStudy("idle", `The ${lesson.title} simulation is coming soon.`);
           return;
         }
 
-        $("study-button").disabled = true;
-        $("study-retry").hidden = true;
-        $("study-frame-wrap").hidden = true;
-        setStudy("loading", `Checking for ${MISSION_ONE_URL}…`);
-
-        const available = await fileAvailable(MISSION_ONE_URL);
-        $("study-button").disabled = statusOf(id) === "locked";
-        if (activeId !== id) return; // the cadet moved to another lesson meanwhile
-
-        if (available) {
-          $("study-frame").src = MISSION_ONE_URL;
-          $("study-frame-wrap").hidden = false;
-          setStudy("ready", "Simulation loaded below.");
-        } else {
-          $("study-frame").removeAttribute("src");
-          $("study-retry").hidden = false;
-          const hint =
-            location.protocol === "file:"
-              ? `Open this page through a local server (for example: python -m http.server) to load ${MISSION_ONE_URL}.`
-              : `${MISSION_ONE_URL} is not on this branch yet. It will load here once it is merged.`;
-          setStudy("missing", hint);
-        }
+        sequenceActive = true;
+        await goToStep(0);
       }
 
-      $("study-button").addEventListener("click", startStudy);
-      $("study-retry").addEventListener("click", startStudy);
-      $("lesson-close").addEventListener("click", () => dialog.close());
+      const actionBtn = $("modal-action-btn");
 
+      $("study-button").addEventListener("click", startStudy);
+      $("study-retry").addEventListener("click", () => goToStep(currentStepIndex));
+      actionBtn.addEventListener("click", () => {
+        if (!sequenceActive || currentStepIndex === mission1Steps.length - 1) {
+          dialog.close();
+          return;
+        }
+        goToStep(currentStepIndex + 1);
+      });
+
+      // Escape must not exit while the quiz is locked.
+      dialog.addEventListener("cancel", (event) => {
+        if (quizLocked) event.preventDefault();
+      });
       dialog.addEventListener("close", () => {
-        $("study-frame").removeAttribute("src"); // stop any running simulation
+        $("study-frame").removeAttribute("src"); // stop any running step
         activeId = null;
+        sequenceActive = false;
+        quizLocked = false;
+        currentStepIndex = 0;
       });
       dialog.addEventListener("click", (event) => {
-        if (event.target === dialog) dialog.close();
+        if (event.target === dialog && !quizLocked) dialog.close();
       });
 
-      /* ---------- Mission completion (postMessage from game iframes) ---------- */
-      const CLOSE_AFTER_WIN_MS = 1500;
+      /* ---------- Quiz completion (postMessage from the quiz frame) ---------- */
 
       /**
        * Mark every task of a lesson done. Idempotent: replaying a finished level
@@ -498,23 +569,18 @@
       }
 
       window.addEventListener("message", (event) => {
-        // Only trust the simulation frame currently in the modal.
+        // Only trust the frame currently in the modal.
         const frame = $("study-frame");
         if (!frame.contentWindow || event.source !== frame.contentWindow) return;
 
         const data = event.data;
-        if (!data || typeof data !== "object" || data.type !== "LEVEL_COMPLETE") return;
+        if (!data || typeof data !== "object" || data.type !== "QUIZ_PASSED") return;
+        if (!sequenceActive || activeId === null || currentStepIndex !== mission1Steps.length - 1) return;
 
-        // Mission number maps to lesson id.
-        const id = Number(data.mission);
-        if (!Number.isInteger(id) || !lessonById(id)) return;
-
-        completeLesson(id);
-
-        // Let the cadet see the updated modal, then close it.
-        setTimeout(() => {
-          if (dialog.open && activeId === id) dialog.close();
-        }, CLOSE_AFTER_WIN_MS);
+        quizLocked = false;
+        setAction("Close", true);
+        completeLesson(activeId);
+        setStudy("ready", "Quiz passed. Close the lesson when you are ready.");
       });
 
       renderProfile();

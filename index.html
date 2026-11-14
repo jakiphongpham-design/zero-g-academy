@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Zero-G Academy</title>
+  <link rel="stylesheet" href="src/assets/css/global.css">
+  <link rel="stylesheet" href="src/core/dashboard.css">
+</head>
+<body>
+  <div class="app">
+
+    <aside class="sidebar" aria-label="Mission navigation">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">ZG</span>
+        <span>Zero-G Academy</span>
+      </div>
+      <nav aria-labelledby="nav-heading">
+        <p id="nav-heading" class="zg-label">Missions</p>
+        <ul id="mission-nav" class="nav-list"></ul>
+      </nav>
+      <p class="sidebar-foot zg-label">Data: NASA DONKI</p>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <h1>Mission Control</h1>
+        <p id="progress" class="zg-label">0 / 3 complete</p>
+      </header>
+
+      <p id="status-message" class="status-message" role="status" aria-live="polite"></p>
+
+      <section class="mission-grid" id="mission-grid" aria-label="Missions"></section>
+
+      <section class="viewport-wrap" aria-label="Game viewport">
+        <div class="viewport-bar">
+          <span class="zg-label">Now playing</span>
+          <span id="viewport-title" class="viewport-title">None</span>
+        </div>
+        <div class="viewport">
+          <div id="viewport-empty" class="viewport-empty">
+            <p>Pick an unlocked mission to launch.</p>
+          </div>
+          <iframe
+            id="mission-viewport"
+            title="Mission viewport"
+            sandbox="allow-scripts allow-same-origin"
+            hidden></iframe>
+        </div>
+      </section>
+    </main>
+
+  </div>
+
+  <script type="module">
+    import { initDashboard } from "./src/core/dashboard-ui.js";
+    initDashboard();
+  </script>
+</body>
+</html>

@@ -1,0 +1,266 @@
+/*
+ * dashboard.css — Dashboard shell layout and components.
+ * Design tokens come from src/assets/css/global.css (SYSTEM_ARCHITECTURE.md §2.2).
+ */
+
+/* The viewer's reset does this too; we repeat it so our display rules never override [hidden]. */
+[hidden] { display: none !important; }
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* ---------- Shell: sidebar + main ---------- */
+.app {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  background: var(--zg-surface);
+  border-right: var(--zg-border-w) solid var(--zg-border);
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--zg-gap);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: var(--zg-border-w) solid var(--zg-accent-blue);
+  border-radius: var(--zg-radius);
+  color: var(--zg-accent-blue);
+  font-size: 0.8rem;
+  box-shadow: 0 0 12px rgba(0, 183, 255, 0.35);
+}
+
+.nav-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.nav-item {
+  width: 100%;
+  min-height: var(--zg-tap);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.75rem;
+  font: inherit;
+  text-align: left;
+  color: var(--zg-text-muted);
+  background: transparent;
+  border: var(--zg-border-w) solid transparent;
+  border-radius: var(--zg-radius);
+  cursor: pointer;
+  transition: background var(--zg-dur) var(--zg-ease), border-color var(--zg-dur) var(--zg-ease);
+}
+
+.nav-item:hover { background: var(--zg-surface-2); color: var(--zg-text); }
+.nav-item[aria-current="page"] { border-color: var(--zg-accent-blue); color: var(--zg-text); }
+.nav-item[aria-disabled="true"] { color: var(--zg-text-dim); }
+
+.sidebar-foot { margin-top: auto; }
+
+/* ---------- Main column ---------- */
+.main {
+  min-width: 0;
+  padding: 2rem clamp(1rem, 3vw, 2.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--zg-gap);
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding-bottom: 1rem;
+  border-bottom: var(--zg-border-w) solid var(--zg-border);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: clamp(var(--zg-fs-h2), 4vw, var(--zg-fs-h1));
+  font-weight: 700;
+}
+
+.status-message {
+  min-height: 1.5rem;
+  margin: 0;
+  color: var(--zg-accent-orange);
+  font-weight: 600;
+}
+
+/* ---------- Mission cards ---------- */
+.mission-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--zg-gap);
+}
+
+.mission-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-height: 11rem;
+  padding: 1.25rem;
+  font: inherit;
+  text-align: left;
+  color: var(--zg-text);
+  background: var(--zg-surface);
+  border: var(--zg-border-w) solid var(--zg-border);
+  border-radius: var(--zg-radius);
+  cursor: pointer;
+  transition: background var(--zg-dur) var(--zg-ease), border-color var(--zg-dur) var(--zg-ease);
+}
+
+.mission-card:hover {
+  background: var(--zg-surface-2);
+  border-color: var(--zg-border-strong);
+}
+
+.mission-card .card-code {
+  font-size: var(--zg-fs-label);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--zg-text-muted);
+}
+
+.mission-card h2 {
+  margin: 0.25rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.mission-card p {
+  margin: 0;
+  color: var(--zg-text-muted);
+  line-height: 1.4;
+}
+
+.mission-card .badge { margin-top: auto; }
+
+.mission-card.status-locked {
+  border-style: dashed;
+  color: var(--zg-text-dim);
+}
+
+.mission-card.status-locked h2,
+.mission-card.status-locked p { color: var(--zg-text-dim); }
+
+/* ---------- Status badges (text + colour, never colour alone) ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  border: var(--zg-border-w) solid currentColor;
+  border-radius: var(--zg-radius-pill);
+}
+
+.badge-locked { color: var(--zg-text-dim); }
+.badge-ready { color: var(--zg-accent-blue); }
+.badge-complete { color: var(--zg-success); }
+
+/* ---------- Game viewport ---------- */
+.viewport-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.viewport-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.viewport-title {
+  font-weight: 700;
+  color: var(--zg-accent-blue);
+}
+
+.viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #000;
+  border: var(--zg-border-w) solid var(--zg-border-strong);
+  border-radius: var(--zg-radius);
+}
+
+.viewport iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.viewport-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--zg-text-muted);
+  background: var(--zg-surface);
+}
+
+/* ---------- Focus visibility (keyboard users) ---------- */
+.nav-item:focus-visible,
+.mission-card:focus-visible {
+  outline: 2px solid var(--zg-accent-blue);
+  outline-offset: 2px;
+}
+
+/* ---------- Narrow screens: sidebar becomes a horizontal rail ---------- */
+@media (max-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: var(--zg-border-w) solid var(--zg-border);
+    padding: 1rem;
+  }
+
+  .nav-list {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .nav-item { width: auto; min-width: 11rem; }
+  .sidebar-foot { display: none; }
+}
+
+@media (max-width: 480px) {
+  .mission-grid { grid-template-columns: minmax(0, 1fr); }
+}

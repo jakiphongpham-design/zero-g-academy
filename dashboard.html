@@ -26,16 +26,16 @@
 
     <aside id="profile" class="profile" aria-labelledby="profile-title">
       <h2 id="profile-title">Student Profile</h2>
-      <div class="avatar" aria-hidden="true">CN</div>
-      <p id="profile-name" class="profile-name">Cadet Nova</p>
+      <div id="avatar" class="avatar" aria-hidden="true">GC</div>
+      <p id="profile-name" class="profile-name">Guest Cadet</p>
       <dl class="stat-list">
         <div class="stat">
           <dt>Current level</dt>
           <dd id="stat-level" class="accent">Level 1</dd>
         </div>
         <div class="stat">
-          <dt>Total time spent</dt>
-          <dd id="stat-time">2.5 hours</dd>
+          <dt>Time spent</dt>
+          <dd id="stat-time">00:00</dd>
         </div>
         <div class="stat">
           <dt>Lessons done</dt>
@@ -80,12 +80,11 @@
   <script>
     (() => {
       const PROFILE_KEY = "zga.profile.v1";
+      const GUEST_NAME = "Guest Cadet";
 
-      /** Mock student data. Total time is 150 minutes, shown as 2.5 hours. */
+      /** Mock progress. Nodes 1 and 2 are done; the rest follow the sequence. */
       const MOCK = {
-        username: "Cadet Nova",
-        totalMinutes: 150,
-        completedIds: [1, 2],     // mock progress: nodes 1 and 2 are done
+        completedIds: [1, 2],
       };
 
       const GROUPS = {
@@ -129,6 +128,7 @@
 
       const STATUS_TEXT = { done: "Completed", current: "Up next", locked: "Locked" };
 
+      /** Read the stored profile; storage can be blocked, so fail to an empty object. */
       function readProfile() {
         try {
           return JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
@@ -137,17 +137,51 @@
         }
       }
 
+      /** Initials for the avatar: first letter of the first two words. */
+      function initialsFor(name) {
+        const parts = name.split(" ").filter(Boolean);
+        const letters = parts.slice(0, 2).map((p) => p[0].toUpperCase());
+        return letters.join("") || "GC";
+      }
+
+      /** Inject the saved cadet name, level and lesson count into the profile sidebar. */
       function renderProfile() {
         const profile = readProfile();
+        const name = typeof profile.name === "string" && profile.name.trim() ? profile.name.trim() : GUEST_NAME;
         const hasLevel = Number.isInteger(profile.placementLevel);
 
-        $("profile-name").textContent = MOCK.username;
+        $("profile-name").textContent = name;
+        $("avatar").textContent = initialsFor(name);
         $("stat-level").textContent = `Level ${hasLevel ? profile.placementLevel : 1}`;
-        $("stat-time").textContent = `${(MOCK.totalMinutes / 60).toFixed(1)} hours`;
         $("stat-done").textContent = `${MOCK.completedIds.length} / ${LESSONS.length}`;
         $("placement-note").textContent = hasLevel
           ? `Starting level from your placement test (${profile.placementScore} of 5 right).`
           : "Level 1 until you take the placement test on the home page.";
+      }
+
+      /** Format a number of seconds as MM:SS. Minutes keep counting past 59. */
+      function formatMMSS(totalSeconds) {
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+      }
+
+      /**
+       * Live session timer. Starts at 00:00 and adds one second every tick.
+       * It pauses while the tab is hidden so it only counts time the cadet is looking at the page.
+       */
+      function startTimeTracker() {
+        const output = $("stat-time");
+        let elapsed = 0;
+        output.textContent = formatMMSS(elapsed);
+
+        const timerId = setInterval(() => {
+          if (document.hidden) return;
+          elapsed += 1;
+          output.textContent = formatMMSS(elapsed);
+        }, 1000);
+
+        window.addEventListener("pagehide", () => clearInterval(timerId));
       }
 
       /** Build the two tier groups with the zig-zag node path. */
@@ -251,6 +285,7 @@
       });
 
       renderProfile();
+      startTimeTracker();
       renderTree();
     })();
   </script>

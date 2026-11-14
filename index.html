@@ -41,7 +41,7 @@
         </article>
         <article class="card">
           <h3>How it works</h3>
-          <p>Take a five-question placement test. Your score sets your starting level, then you follow the lesson path one node at a time.</p>
+          <p>Enter your cadet name and take a five-question placement test. Your score sets your starting level, then you follow the lesson path one node at a time.</p>
         </article>
         <article class="card">
           <h3>Real space numbers</h3>
@@ -56,17 +56,32 @@
       <h2 id="contact-title">Contact Us</h2>
       <p>Questions, feedback or a teacher account request? Email <strong>contact@example.com</strong> (placeholder address).</p>
       <p class="small">Zero-G Academy is a prototype. Quiz data: NASA Planetary Fact Sheet.</p>
+      <p class="small">Background: Mars true-colour image by ESA &amp; MPS for OSIRIS Team MPS/UPD/LAM/IAA/RSSD/INTA/UPM/DASP/IDA, CC BY-SA.</p>
     </div>
   </footer>
 
-  <!-- Placement test (5 questions) -->
+  <!-- Sign-up: cadet name, then placement test (5 questions) -->
   <dialog id="placement-dialog" class="quiz-dialog" aria-labelledby="placement-title">
     <div class="quiz-body">
-      <p class="kicker">Placement test</p>
+      <p class="kicker">Sign up</p>
       <h2 id="placement-title" class="modal-title">Find your starting level</h2>
 
-      <!-- Question view -->
-      <div id="quiz-view">
+      <!-- Step 1: cadet name -->
+      <form id="name-view" class="name-form" novalidate>
+        <label for="cadet-name" class="field-label">Enter Cadet Name</label>
+        <input id="cadet-name" class="text-input" type="text" maxlength="20"
+               autocomplete="nickname" placeholder="For example, Nova"
+               aria-describedby="name-hint name-error">
+        <p id="name-hint" class="quiz-source">2 to 20 letters or numbers.</p>
+        <p id="name-error" class="quiz-feedback bad" role="alert"></p>
+        <div class="modal-actions">
+          <button id="name-close" class="btn btn-orange-ghost" type="button">Close</button>
+          <button id="name-start" class="btn btn-cyan" type="submit">Start test</button>
+        </div>
+      </form>
+
+      <!-- Step 2: question view -->
+      <div id="quiz-view" hidden>
         <div class="quiz-progress" aria-hidden="true"><span id="quiz-bar"></span></div>
         <p id="quiz-count" class="quiz-count"></p>
         <p id="quiz-prompt" class="quiz-question"></p>
@@ -79,7 +94,7 @@
         </div>
       </div>
 
-      <!-- Result view -->
+      <!-- Step 3: result -->
       <div id="result-view" hidden>
         <p class="result-level" id="result-level"></p>
         <p class="result-text" id="result-text"></p>
@@ -94,6 +109,8 @@
   <script>
     (() => {
       const PROFILE_KEY = "zga.profile.v1";
+      const NAME_MIN = 2;
+      const NAME_MAX = 20;
 
       /**
        * Five questions, ordered easy to hard. Values are from the NASA Planetary Fact Sheet
@@ -135,6 +152,9 @@
       const $ = (id) => document.getElementById(id);
       const dialog = $("placement-dialog");
       const el = {
+        nameView: $("name-view"),
+        nameInput: $("cadet-name"),
+        nameError: $("name-error"),
         bar: $("quiz-bar"),
         count: $("quiz-count"),
         prompt: $("quiz-prompt"),
@@ -146,7 +166,6 @@
         resultView: $("result-view"),
         resultLevel: $("result-level"),
         resultText: $("result-text"),
-        go: $("result-go"),
       };
 
       let index = 0;
@@ -158,14 +177,66 @@
         return Math.min(5, Math.max(1, s));
       }
 
-      function startTest() {
+      /** Trim, collapse spaces, and check the cadet name. Returns the clean name or null. */
+      function cleanName(raw) {
+        const name = raw.trim().replace(/\s+/g, " ");
+        const valid = name.length >= NAME_MIN && name.length <= NAME_MAX && /^[\p{L}\p{N} '-]+$/u.test(name);
+        return valid ? name : null;
+      }
+
+      /** Read the stored profile; storage can be blocked, so fail to an empty object. */
+      function readProfile() {
+        try {
+          return JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
+        } catch {
+          return {};
+        }
+      }
+
+      /** Merge fields into the stored profile. Storage can be blocked; fail quietly. */
+      function saveProfile(fields) {
+        try {
+          localStorage.setItem(PROFILE_KEY, JSON.stringify({ ...readProfile(), ...fields }));
+        } catch {
+          /* private browsing or blocked storage: the dashboard falls back to a guest name */
+        }
+      }
+
+      /** Step 1: open the sign-up modal at the name field, pre-filled with any saved name. */
+      function openSignup() {
+        el.nameView.hidden = false;
+        el.quizView.hidden = true;
+        el.resultView.hidden = true;
+        el.nameError.textContent = "";
+        el.nameInput.setAttribute("aria-invalid", "false");
+        el.nameInput.value = readProfile().name || "";
+        dialog.showModal();
+        el.nameInput.focus();
+      }
+
+      /** Step 2: start the five questions. */
+      function startQuestions() {
         index = 0;
         score = 0;
         answered = false;
+        el.nameView.hidden = true;
         el.quizView.hidden = false;
         el.resultView.hidden = true;
         showQuestion();
-        dialog.showModal();
+      }
+
+      function submitName(event) {
+        event.preventDefault();
+        const name = cleanName(el.nameInput.value);
+        if (!name) {
+          el.nameError.textContent = "Please enter 2 to 20 letters or numbers.";
+          el.nameInput.setAttribute("aria-invalid", "true");
+          el.nameInput.focus();
+          return;
+        }
+        el.nameInput.setAttribute("aria-invalid", "false");
+        saveProfile({ name });
+        startQuestions();
       }
 
       function showQuestion() {
@@ -237,21 +308,13 @@
         saveProfile({ placementScore: score, placementLevel: level, takenAt: new Date().toISOString() });
       }
 
-      /** Save the placement result for the dashboard. Storage can be blocked; fail quietly. */
-      function saveProfile(profile) {
-        try {
-          const existing = JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
-          localStorage.setItem(PROFILE_KEY, JSON.stringify({ ...existing, ...profile }));
-        } catch {
-          /* private browsing or blocked storage: the dashboard will show Level 1 */
-        }
-      }
-
-      $("open-signup").addEventListener("click", startTest);
-      $("hero-signup").addEventListener("click", startTest);
+      el.nameView.addEventListener("submit", submitName);
+      $("name-close").addEventListener("click", () => dialog.close());
+      $("open-signup").addEventListener("click", openSignup);
+      $("hero-signup").addEventListener("click", openSignup);
       el.next.addEventListener("click", nextStep);
       $("quiz-close").addEventListener("click", () => dialog.close());
-      $("result-retry").addEventListener("click", startTest);
+      $("result-retry").addEventListener("click", startQuestions);
 
       // Backdrop click closes the dialog (the dialog element is the backdrop target).
       dialog.addEventListener("click", (event) => {

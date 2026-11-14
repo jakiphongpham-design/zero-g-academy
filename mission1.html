@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission 1 - Gravity Drop</title>
+<style>
+  body { margin: 0; overflow: hidden; display: flex; flex-direction: column; height: 100vh; background: #0b0c10; }
+
+  #simCanvas {
+    display: block;
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+  }
+
+  .control-bar {
+    flex: 0 0 80px;
+    height: 80px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 0 16px;
+    background: #0d1117;
+    border-top: 1px solid #1c2a3a;
+  }
+
+  .mass-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 150px;
+    height: 48px;
+    background: #0a1220;
+    color: var(--c);
+    border: 2px solid var(--c);
+    border-radius: 10px;
+    box-shadow: 0 0 8px var(--glow);
+    font: 700 16px/1 system-ui, "Segoe UI", Arial, sans-serif;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.1s, opacity 0.2s;
+  }
+
+  .mass-btn[data-mass="1"]    { --c: #00d4ff; --glow: rgba(0, 212, 255, 0.55); }
+  .mass-btn[data-mass="10"]   { --c: #3b82f6; --glow: rgba(59, 130, 246, 0.55); }
+  .mass-btn[data-mass="100"]  { --c: #6366f1; --glow: rgba(99, 102, 241, 0.55); }
+  .mass-btn[data-mass="1000"] { --c: #a78bfa; --glow: rgba(167, 139, 250, 0.55); }
+
+  .mass-btn:not(:disabled):hover {
+    background: #12243a;
+    box-shadow: 0 0 18px var(--glow);
+    transform: translateY(-2px);
+  }
+
+  .mass-btn:not(:disabled):active {
+    transform: translateY(0) scale(0.97);
+  }
+
+  .mass-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .mass-btn:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 480px) {
+    .control-bar { gap: 8px; padding: 0 8px; }
+    .mass-btn { font-size: 14px; border-radius: 8px; }
+  }
+</style>
+</head>
+<body>
+
+  <canvas id="simCanvas"></canvas>
+
+  <div class="control-bar">
+    <button class="mass-btn" data-mass="1">1 kg</button>
+    <button class="mass-btn" data-mass="10">10 kg</button>
+    <button class="mass-btn" data-mass="100">100 kg</button>
+    <button class="mass-btn" data-mass="1000">1000 kg</button>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  const canvas = document.getElementById('simCanvas');
+  const ctx = canvas.getContext('2d');
+  const buttons = Array.from(document.querySelectorAll('.mass-btn'));
+
+  // ---- Physics constants -------------------------------------------------
+  const EARTH_G = 9.8;
+  const TARGET_FALL_SECONDS = 2.75; // Earth drop duration (spec: 2.5-3 s)
+  const PARTICLE_G_SCALE = 0.05;    // separate, unchanged scale for dust arcs
+  let G_SCALE = 0.05;               // universal drop scale, recalculated on resize
+  const TOP_MARGIN = 80;           // spawn clearance below the column labels
+  const WIND_SPEED = 0.016;        // shockwave expansion per frame
+  const DUST_DECAY = 0.012;        // particle fade per frame
+  const DUST_BOUNCE = 0.3;         // energy kept on ground contact (vertical)
+
+  const PLANETS = [
+    { name: 'EARTH', g: 9.8,  sky: '#87ceeb', ground: '#2e7d32', dust: '#d7f5d0', label: '#0b1d2a', stars: false },
+    { name: 'MOON',  g: 1.62, sky: '#000000', ground: '#7a7a7a', dust: '#dcdcdc', label: '#ffffff', stars: true  },
+    { name: 'MARS',  g: 3.72, sky: '#1a0404', ground: '#5d2a1a', dust: '#d9703e', label: '#ffffff', stars: true  },
+  ];
+
+  // ---- State -------------------------------------------------------------
+  let W = 0, H = 0, dpr = 1;
+  let colW = 0, groundH = 0, groundY = 0;
+  let stars = PLANETS.map(() => []);
+  let objects = [];       // one sphere per column
+  let fx = [];            // shockwaves ('wind') and dust particles ('dust')
+  let phase = 'idle';     // 'idle' | 'active'
+  let currentMass = 0;
+  let lastTs = 0;
+
+  // ---- Setup -------------------------------------------------------------
+  function generateStars() {
+    stars = PLANETS.map(p => p.stars
+      ? Array.from({ length: 120 }, () => ({
+          u: Math.random(),                 // normalised column x
+          v: Math.random() * 0.95,          // normalised sky y
+          r: 0.4 + Math.random() * 1.4,
+          a: 0.35 + Math.random() * 0.65
+        }))
+      : []);
+  }
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const newW = rect.width;
+    const newH = rect.height;
+    if (newW < 1 || newH < 1) return;
+
+    dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(newW * dpr);
+    canvas.height = Math.round(newH * dpr);
+
+    const sx = W ? newW / W : 1;
+    const sy = H ? newH / H : 1;
+
+    W = newW;
+    H = newH;
+    colW = W / 3;
+    groundH = Math.max(40, H * 0.14);
+    groundY = H - groundH;
+    G_SCALE = computeGScale();
+
+    // Keep in-flight entities in place when the window changes size.
+    objects.forEach(o => {
+      o.x *= sx;
+      o.y = o.landed ? groundY - o.r : o.y * sy;
+    });
+    fx.forEach(e => {
+      e.x *= sx;
+      if (e.type === 'dust') e.y *= sy;
+    });
+  }
+
+  // ---- Object & VFX factories -------------------------------------------
+  function radiusFor(mass) {
+    // Logarithmic radius: 1 kg -> 0.04, 1000 kg -> 0.115 of the smaller column dimension.
+    return Math.min(colW, H) * (0.04 + 0.025 * Math.log10(mass));
+  }
+
+  // One universal scale for every planet, derived from the current layout so that
+  // a 1 kg object dropped on Earth lands after exactly TARGET_FALL_SECONDS.
+  // Per frame: vy += a, y += vy, so after N frames the distance travelled is
+  // a * N(N+1) / 2 with a = g * G_SCALE. Solving for G_SCALE gives the formula below.
+  // Moon and Mars then fall in proportion to sqrt(9.8 / g) with no hardcoded times.
+  function computeGScale() {
+    const rRef = radiusFor(1);
+    const drop = Math.max(1, groundY - 2 * rRef - TOP_MARGIN);
+    const N = TARGET_FALL_SECONDS * 60;
+    return (2 * drop) / (EARTH_G * N * (N + 1));
+  }
+
+  function makeObject(i, mass) {
+    const r = radiusFor(mass);
+    return {
+      i,
+      x: i * colW + colW / 2,
+      y: TOP_MARGIN + r,
+      vy: 0,
+      r,
+      landed: false
+    };
+  }
+
+  function spawnImpact(o) {
+    const planet = PLANETS[o.i];
+    // Mass factor: log10(mass) + 1  ->  1 kg = 1, 10 kg = 2, 100 kg = 3, 1000 kg = 4
+    const L = Math.log10(currentMass) + 1;
+
+    // Geometric wind: expanding stroke-only ellipse.
+    fx.push({
+      type: 'wind',
+      x: o.x,
+      p: 0,                                   // 0 -> 1 over lifetime
+      maxRx: Math.min(colW * 0.45, 40 * L),   // max radius scaled by log(mass)
+      ratio: 0.22,                            // flattened against the ground
+      color: planet.dust
+    });
+
+    // Particle explosion: count scaled by log(mass).
+    const count = Math.round(18 * L);
+    // Lighter gravity -> same launch speed travels higher, so speed is tempered
+    // by (g / g_earth)^0.25 to keep Moon dust in frame while staying proportional.
+    const speedFactor = Math.pow(planet.g / 9.8, 0.25);
+    for (let k = 0; k < count; k++) {
+      const angle = -Math.PI * (0.15 + Math.random() * 0.7);   // upward cone
+      const speed = (2.5 + Math.random() * (3.5 + 1.5 * L)) * speedFactor;
+      fx.push({
+        type: 'dust',
+        x: o.x + (Math.random() - 0.5) * o.r,
+        y: groundY - 2,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        gravity: planet.g * PARTICLE_G_SCALE,
+        rad: 1.5 + Math.random() * 2.5,
+        life: 1,                              // doubles as globalAlpha
+        color: planet.dust
+      });
+    }
+  }
+
+  // ---- Simulation --------------------------------------------------------
+  function update(f) {
+    // Falling spheres: vy accumulates gravity every frame.
+    objects.forEach(o => {
+      if (o.landed) return;
+      o.vy += PLANETS[o.i].g * G_SCALE * f;
+      o.y += o.vy * f;
+      if (o.y + o.r >= groundY) {
+        o.y = groundY - o.r;
+        o.vy = 0;
+        o.landed = true;
+        spawnImpact(o);
+      }
+    });
+
+    // VFX.
+    fx.forEach(e => {
+      if (e.type === 'wind') {
+        e.p = Math.min(1, e.p + WIND_SPEED * f);
+      } else {
+        e.vy += e.gravity * f;
+        e.x += e.vx * f;
+        e.y += e.vy * f;
+        if (e.y >= groundY) {
+          e.y = groundY;
+          e.vy *= -DUST_BOUNCE;
+          e.vx *= 0.6;
+        }
+        e.life = Math.max(0, e.life - DUST_DECAY * f);
+      }
+    });
+    // Remove anything whose opacity has reached zero.
+    fx = fx.filter(e => e.type === 'wind' ? e.p < 1 : e.life > 0);
+
+    // Win check: all landed and every VFX fully faded.
+    if (phase === 'active' && objects.every(o => o.landed) && fx.length === 0) {
+      finish();
+    }
+  }
+
+  function finish() {
+    phase = 'idle';
+    buttons.forEach(b => { b.disabled = false; });
+    window.parent.postMessage({ type: 'LEVEL_COMPLETE', mission: 1 }, '*');
+  }
+
+  function launch(mass) {
+    if (phase === 'active') return;
+    phase = 'active';
+    currentMass = mass;
+    buttons.forEach(b => { b.disabled = true; });
+    objects = PLANETS.map((_, i) => makeObject(i, mass));
+    fx = [];
+  }
+
+  // ---- Rendering ---------------------------------------------------------
+  function drawColumns() {
+    PLANETS.forEach((p, i) => {
+      const x0 = i * colW;
+
+      // Sky
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = p.sky;
+      ctx.fillRect(x0, 0, colW, groundY);
+
+      // Stars
+      if (p.stars) {
+        stars[i].forEach(s => {
+          ctx.fillStyle = `rgba(255, 255, 255, ${s.a})`;
+          ctx.beginPath();
+          ctx.arc(x0 + s.u * colW, s.v * groundY, s.r, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+
+      // Ground
+      ctx.fillStyle = p.ground;
+      ctx.fillRect(x0, groundY, colW, groundH);
+
+      // Label
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = p.label;
+      ctx.font = 'bold 18px system-ui, "Segoe UI", Arial, sans-serif';
+      ctx.fillText(p.name, x0 + colW / 2, 16);
+      ctx.font = '13px system-ui, "Segoe UI", Arial, sans-serif';
+      ctx.fillText(`g = ${p.g} m/s²`, x0 + colW / 2, 40);
+    });
+
+    // Column dividers
+    ctx.fillStyle = '#0b0c10';
+    ctx.fillRect(colW - 1, 0, 2, H);
+    ctx.fillRect(2 * colW - 1, 0, 2, H);
+  }
+
+  function drawVFX() {
+    fx.forEach(e => {
+      if (e.type === 'wind') {
+        const t = 1 - Math.pow(1 - e.p, 3);   // ease-out expansion
+        const rx = e.maxRx * t;
+        const ry = rx * e.ratio;
+        ctx.globalAlpha = Math.max(0, 1 - e.p);
+        ctx.strokeStyle = e.color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(e.x, groundY, rx, ry, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.globalAlpha = Math.max(0, e.life);
+        ctx.fillStyle = e.color;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.rad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function drawObjects() {
+    objects.forEach(o => {
+      const g = ctx.createRadialGradient(o.x - o.r * 0.35, o.y - o.r * 0.35, o.r * 0.1, o.x, o.y, o.r);
+      g.addColorStop(0, '#e0faff');
+      g.addColorStop(0.45, '#00bcd4');
+      g.addColorStop(1, '#00363f');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  function draw() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    drawColumns();
+    drawVFX();
+    drawObjects();
+    ctx.globalAlpha = 1;
+  }
+
+  // ---- Main loop (requestAnimationFrame, normalised to 60 FPS) -----------
+  function frame(ts) {
+    const dt = lastTs ? Math.min((ts - lastTs) / 1000, 0.05) : 1 / 60;
+    lastTs = ts;
+    const f = dt * 60;   // 1.0 at exactly 60 FPS
+
+    if (W && H) {
+      update(f);
+      draw();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ---- Wiring ------------------------------------------------------------
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => launch(Number(btn.dataset.mass)));
+  });
+
+  generateStars();
+  new ResizeObserver(resize).observe(canvas);
+  resize();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

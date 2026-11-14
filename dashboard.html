@@ -389,13 +389,13 @@
             button.addEventListener("click", () => toggleTask(activeId, key));
 
             const type = document.createElement("span");
-            type.className = "type";
+            type.className = `type type-${key}`;
             type.textContent = TASK_LABELS[key];
             const title = document.createElement("span");
             title.className = "task-title";
             title.textContent = lesson.subs[key];
             const state = document.createElement("span");
-            state.className = "state";
+            state.className = isDone ? "state is-done" : "state";
             state.textContent = isDone ? "Done" : "To do";
 
             button.append(type, title, state);

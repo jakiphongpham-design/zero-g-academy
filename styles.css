@@ -933,9 +933,11 @@ dialog[data-tier="hard"] { --tier: #B26BFF; --tier-2: #FF4FD8; }
   width: 100%;
   min-height: 52px;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem 0.85rem;
+  gap: 1rem;
+  padding: 0.7rem 0.9rem;
   font: inherit;
   text-align: left;
   color: var(--text);
@@ -961,16 +963,54 @@ dialog[data-tier="hard"] { --tier: #B26BFF; --tier-2: #FF4FD8; }
   font-weight: 600;
 }
 
+/* Category tags and status badges render as separate pills. */
+.task .type,
 .task .state {
   flex: none;
-  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  line-height: 1;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--dim);
+  white-space: nowrap;
 }
 
-.task[aria-pressed="true"] .state { color: var(--ok); }
+.task .type-video {
+  color: #7FF3FF;
+  background: rgba(0, 229, 255, 0.16);
+  border-color: rgba(0, 229, 255, 0.45);
+}
+
+.task .type-quiz {
+  color: #D7B8FF;
+  background: rgba(178, 107, 255, 0.18);
+  border-color: rgba(178, 107, 255, 0.5);
+}
+
+.task .type-simulation {
+  color: #FFB27A;
+  background: rgba(255, 122, 26, 0.16);
+  border-color: rgba(255, 122, 26, 0.5);
+}
+
+.task .state {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--line-strong);
+}
+
+.task .state.is-done {
+  color: var(--ok);
+  background: rgba(92, 255, 176, 0.16);
+  border-color: rgba(92, 255, 176, 0.5);
+}
 
 .study-panel {
   display: grid;

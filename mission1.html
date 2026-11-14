@@ -95,7 +95,10 @@
   const buttons = Array.from(document.querySelectorAll('.mass-btn'));
 
   // ---- Physics constants -------------------------------------------------
-  const G_SCALE = 0.05;            // visual scale-down of real gravity
+  const EARTH_G = 9.8;
+  const TARGET_FALL_SECONDS = 2.75; // Earth drop duration (spec: 2.5-3 s)
+  const PARTICLE_G_SCALE = 0.05;    // separate, unchanged scale for dust arcs
+  let G_SCALE = 0.05;               // universal drop scale, recalculated on resize
   const TOP_MARGIN = 80;           // spawn clearance below the column labels
   const WIND_SPEED = 0.016;        // shockwave expansion per frame
   const DUST_DECAY = 0.012;        // particle fade per frame
@@ -147,6 +150,7 @@
     colW = W / 3;
     groundH = Math.max(40, H * 0.14);
     groundY = H - groundH;
+    G_SCALE = computeGScale();
 
     // Keep in-flight entities in place when the window changes size.
     objects.forEach(o => {
@@ -160,9 +164,25 @@
   }
 
   // ---- Object & VFX factories -------------------------------------------
-  function makeObject(i, mass) {
+  function radiusFor(mass) {
     // Logarithmic radius: 1 kg -> 0.04, 1000 kg -> 0.115 of the smaller column dimension.
-    const r = Math.min(colW, H) * (0.04 + 0.025 * Math.log10(mass));
+    return Math.min(colW, H) * (0.04 + 0.025 * Math.log10(mass));
+  }
+
+  // One universal scale for every planet, derived from the current layout so that
+  // a 1 kg object dropped on Earth lands after exactly TARGET_FALL_SECONDS.
+  // Per frame: vy += a, y += vy, so after N frames the distance travelled is
+  // a * N(N+1) / 2 with a = g * G_SCALE. Solving for G_SCALE gives the formula below.
+  // Moon and Mars then fall in proportion to sqrt(9.8 / g) with no hardcoded times.
+  function computeGScale() {
+    const rRef = radiusFor(1);
+    const drop = Math.max(1, groundY - 2 * rRef - TOP_MARGIN);
+    const N = TARGET_FALL_SECONDS * 60;
+    return (2 * drop) / (EARTH_G * N * (N + 1));
+  }
+
+  function makeObject(i, mass) {
+    const r = radiusFor(mass);
     return {
       i,
       x: i * colW + colW / 2,
@@ -202,7 +222,7 @@
         y: groundY - 2,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        gravity: planet.g * G_SCALE,
+        gravity: planet.g * PARTICLE_G_SCALE,
         rad: 1.5 + Math.random() * 2.5,
         life: 1,                              // doubles as globalAlpha
         color: planet.dust

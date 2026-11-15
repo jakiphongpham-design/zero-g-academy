@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission 02 - Rover Sample Run</title>
+<style>
+  /* Design tokens: values copied from the dashboard look (deep space blue, neon cyan and orange)
+     so this mission matches the platform while staying fully self-contained. */
+  :root {
+    --zg-bg:            #01030B;
+    --zg-bg-2:          #050B1F;
+    --zg-surface:       rgba(10, 22, 52, 0.72);
+    --zg-surface-solid: #0B1733;
+    --zg-surface-2:     rgba(255, 255, 255, 0.04);
+    --zg-border:        rgba(120, 170, 255, 0.2);
+    --zg-border-strong: rgba(120, 170, 255, 0.45);
+    --zg-text:          #EAF2FF;
+    --zg-text-muted:    #9FB3D1;
+    --zg-text-dim:      #66789B;
+    --zg-accent-blue:   #00E5FF;
+    --zg-accent-orange: #FF7A1A;
+    --zg-accent-violet: #B26BFF;
+    --zg-success:       #5CFFB0;
+    --zg-danger:        #FF5C7A;
+    --zg-locked:        #3A4660;
+    --zg-font: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    --zg-font-mono: "JetBrains Mono", Consolas, "Courier New", monospace;
+    --zg-fs-label: 0.75rem;
+    --zg-fs-body:  1.125rem;
+    --zg-fs-h2:    1.75rem;
+    --zg-radius:     14px;
+    --zg-radius-pill: 999px;
+    --zg-tap:        48px;
+    --zg-gap:        1.5rem;
+    --zg-dur:        180ms;
+    color-scheme: dark;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root { --zg-dur: 0ms; }
+  }
+
+  * { box-sizing: border-box; }
+
+  html {
+    background: linear-gradient(180deg, var(--zg-bg) 0%, var(--zg-bg-2) 55%, var(--zg-bg) 100%) fixed;
+  }
+
+  body {
+    position: relative;
+    isolation: isolate;
+    margin: 0;
+    padding: 20px;
+    min-height: 100vh;
+    color: var(--zg-text);
+    font-family: var(--zg-font);
+    background: transparent;
+  }
+
+  /* Faint starfield, same style as the dashboard */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(1px 1px at 12% 18%, #fff 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 67% 42%, #cfe9ff 50%, transparent 51%),
+      radial-gradient(1px 1px at 83% 76%, #fff 50%, transparent 51%),
+      radial-gradient(1px 1px at 35% 88%, #ffd9b8 50%, transparent 51%),
+      radial-gradient(1px 1px at 52% 8%, #fff 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 24% 61%, #bfe6ff 50%, transparent 51%);
+    background-size: 420px 420px, 380px 380px, 520px 520px, 330px 330px, 460px 460px, 290px 290px;
+    opacity: 0.8;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--zg-accent-blue);
+    outline-offset: 3px;
+  }
+
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .label {
+    font-size: var(--zg-fs-label);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--zg-accent-blue);
+  }
+
+  h1 {
+    font-size: clamp(1.8rem, 4vw, 2.4rem);
+    font-weight: 800;
+    margin: 6px 0 0;
+    text-shadow: 0 0 28px rgba(0, 229, 255, 0.35);
+  }
+
+  .intro {
+    margin: 6px 0 0;
+    font-size: var(--zg-fs-body);
+    color: var(--zg-text-muted);
+  }
+
+  button {
+    min-height: var(--zg-tap);
+    padding: 0 1.4rem;
+    font-family: inherit;
+    font-size: var(--zg-fs-body);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-radius: var(--zg-radius-pill);
+    cursor: pointer;
+    transition: box-shadow var(--zg-dur) ease, background var(--zg-dur) ease, border-color var(--zg-dur) ease;
+  }
+
+  button.primary {
+    color: #00121C;
+    background: var(--zg-accent-blue);
+    border: 1px solid transparent;
+    box-shadow: 0 0 16px rgba(0, 229, 255, 0.45);
+  }
+
+  button.primary:hover,
+  button.primary:focus-visible {
+    box-shadow: 0 0 26px rgba(0, 229, 255, 0.75);
+  }
+
+  button.secondary {
+    color: var(--zg-accent-orange);
+    background: transparent;
+    border: 1px solid var(--zg-accent-orange);
+  }
+
+  button.secondary:hover,
+  button.secondary:focus-visible {
+    box-shadow: 0 0 14px rgba(255, 122, 26, 0.4);
+  }
+
+  button.drive {
+    color: var(--zg-text);
+    background: var(--zg-surface-2);
+    border: 1px solid var(--zg-border-strong);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  button.drive:hover { border-color: var(--zg-accent-blue); }
+
+  button.drive.held,
+  button.drive:active {
+    border-color: var(--zg-accent-blue);
+    background: rgba(0, 229, 255, 0.07);
+    box-shadow: 0 0 14px rgba(0, 229, 255, 0.45);
+  }
+
+  /* Difficulty buttons */
+  .levels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: var(--zg-gap);
+  }
+
+  .levels .label { margin-right: 4px; }
+
+  /* Each area uses the dashboard's tier colour: cyan (easy), orange (medium), violet (hard) */
+  button.level {
+    --tier: var(--zg-accent-blue);
+    color: var(--tier);
+    background: transparent;
+    border: 1px solid var(--tier);
+  }
+
+  button.level[data-level="medium"] { --tier: var(--zg-accent-orange); }
+  button.level[data-level="hard"]   { --tier: var(--zg-accent-violet); }
+
+  button.level:hover,
+  button.level:focus-visible {
+    box-shadow: 0 0 14px var(--tier);
+  }
+
+  button.level[aria-pressed="true"] {
+    color: #00121C;
+    background: var(--tier);
+    border: 1px solid var(--tier);
+    box-shadow: 0 0 18px var(--tier);
+  }
+
+  button.level[aria-disabled="true"] {
+    color: var(--zg-text-dim);
+    background: transparent;
+    border: 1px dashed var(--zg-locked);
+    cursor: not-allowed;
+  }
+
+  .stage {
+    position: relative;
+    background: var(--zg-surface);
+    border: 1px solid var(--zg-border-strong);
+    border-radius: var(--zg-radius);
+    padding: 10px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 50px -18px var(--zg-accent-blue);
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 480px;
+    border-radius: 10px;
+    background: #000000;
+  }
+
+  canvas:focus-visible {
+    outline: 2px solid var(--zg-accent-blue);
+    outline-offset: 2px;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 10px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(1, 3, 11, 0.75);
+    backdrop-filter: blur(4px);
+    border-radius: 10px;
+  }
+
+  .overlay.show { display: flex; }
+
+  .overlay-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 24px;
+    max-width: 90%;
+    text-align: center;
+    background: var(--zg-surface-solid);
+    border: 1px solid var(--zg-accent-orange);
+    border-radius: 18px;
+    box-shadow: 0 0 50px -8px var(--zg-accent-orange);
+  }
+
+  .overlay-box p {
+    margin: 0;
+    font-size: var(--zg-fs-h2);
+    font-weight: 800;
+  }
+
+  .hud {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--zg-gap);
+    margin-top: var(--zg-gap);
+  }
+
+  .hud-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    background: var(--zg-surface);
+    border: 1px solid var(--zg-border);
+    border-radius: var(--zg-radius);
+    backdrop-filter: blur(6px);
+  }
+
+  .hud-value {
+    font-family: var(--zg-font-mono);
+    font-size: var(--zg-fs-h2);
+    font-weight: 700;
+    color: var(--zg-text);
+  }
+
+  #hudHp { color: var(--zg-accent-orange); }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--zg-gap);
+    font-size: var(--zg-fs-body);
+    color: var(--zg-text-muted);
+  }
+
+  .toolbar .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+  .complete {
+    color: var(--zg-success);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  /* Rock collection area */
+  .collection {
+    margin-top: var(--zg-gap);
+    padding: 1.25rem;
+    background: var(--zg-surface);
+    border: 1px solid var(--zg-border);
+    border-radius: var(--zg-radius);
+    backdrop-filter: blur(6px);
+  }
+
+  .collection-hint {
+    margin: 6px 0 12px;
+    font-size: var(--zg-fs-body);
+    color: var(--zg-text-muted);
+  }
+
+  .collection-slots {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  button.rock-slot {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 72px;
+    padding: 10px 16px;
+    text-align: left;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--zg-text);
+    background: var(--zg-surface-2);
+    border: 1px solid var(--zg-border-strong);
+    border-radius: 12px;
+  }
+
+  button.rock-slot:hover,
+  button.rock-slot:focus-visible {
+    border-color: var(--rock-main, var(--zg-accent-blue));
+    box-shadow: 0 0 12px var(--rock-main, var(--zg-accent-blue));
+  }
+
+  button.rock-slot[disabled] {
+    color: var(--zg-text-dim);
+    background: transparent;
+    border: 1px dashed var(--zg-locked);
+    box-shadow: none;
+    cursor: default;
+  }
+
+  .rock-slot small {
+    display: block;
+    font-size: var(--zg-fs-label);
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--zg-text-muted);
+  }
+
+  /* Crystal shape that matches the rocks drawn in the game */
+  .rock-icon {
+    flex: none;
+    width: 56px;
+    height: 34px;
+    clip-path: polygon(0% 95%, 11% 27%, 43% 0%, 78% 18%, 100% 73%, 89% 95%, 60% 100%);
+    background: linear-gradient(135deg, var(--rock-main, #6B727C), var(--rock-dark, #3A3F46));
+  }
+
+  .rock-icon.big { width: 112px; height: 68px; }
+
+  /* Rock fact pop-up */
+  .rock-card-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(1, 3, 11, 0.75);
+    backdrop-filter: blur(4px);
+  }
+
+  .rock-card-backdrop[hidden] { display: none; }
+
+  .rock-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 520px;
+    max-height: 100%;
+    overflow-y: auto;
+    padding: 1.5rem;
+    text-align: center;
+    background: var(--zg-surface-solid);
+    border: 1px solid var(--rock-main, var(--zg-accent-blue));
+    border-radius: 18px;
+    box-shadow: 0 0 50px -8px var(--rock-main, var(--zg-accent-blue));
+  }
+
+  .rock-card h2 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 800;
+  }
+
+  .rock-card ul {
+    padding: 0.75rem 0.9rem 0.75rem 2rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--zg-border);
+    border-radius: 10px;
+  }
+
+  .rock-card .rock-type {
+    margin: 0;
+    font-size: var(--zg-fs-body);
+    font-weight: 700;
+    color: var(--rock-main, var(--zg-text));
+  }
+
+  .rock-card ul {
+    margin: 0;
+    padding-left: 22px;
+    text-align: left;
+    font-size: var(--zg-fs-body);
+    line-height: 1.5;
+    color: var(--zg-text);
+  }
+
+  .rock-card li + li { margin-top: 8px; }
+
+  @media (max-width: 900px) {
+    canvas { height: 380px; }
+    .collection-slots { grid-template-columns: minmax(0, 1fr); }
+    .hud { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 12px; }
+    canvas { height: 300px; }
+    .overlay-box p { font-size: var(--zg-fs-body); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="label">Mission 02 &middot; Zero-G</div>
+    <h1>Rover Sample Run</h1>
+    <p class="intro">Drive NASA's Perseverance rover over rough Mars ground. Collect all three rock samples without tipping over.</p>
+  </div>
+</header>
+
+<main>
+  <div class="levels" role="group" aria-label="Difficulty">
+    <span class="label">Difficulty</span>
+    <button type="button" class="level" data-level="easy" aria-pressed="true">Mars Plains</button>
+    <button type="button" class="level" data-level="medium" aria-pressed="false" aria-disabled="false">Highlands</button>
+    <button type="button" class="level" data-level="hard" aria-pressed="false" aria-disabled="false">Mountainous Area</button>
+  </div>
+
+  <div class="stage">
+    <canvas id="stage" tabindex="0" aria-label="Side view of the Perseverance rover on rocky Mars ground. Drive with the arrow keys or A and D, or use the drive buttons below."></canvas>
+    <div class="overlay" id="overlay" role="alertdialog" aria-live="assertive">
+      <div class="overlay-box">
+        <p id="overlayText">The rover tipped over.</p>
+        <button type="button" class="primary" id="tryAgainBtn">Try again</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div class="hud-item">
+      <span class="label">Samples</span>
+      <span class="hud-value" id="hudSamples">0 / 5</span>
+    </div>
+    <div class="hud-item">
+      <span class="label">Speed</span>
+      <span class="hud-value" id="hudSpeed">0.0 m/s</span>
+    </div>
+    <div class="hud-item">
+      <span class="label">Tilt</span>
+      <span class="hud-value" id="hudTilt">0&deg;</span>
+    </div>
+    <div class="hud-item">
+      <span class="label">HP</span>
+      <span class="hud-value" id="hudHp">35 / 35</span>
+    </div>
+    <div class="hud-item">
+      <span class="label">Level</span>
+      <span class="hud-value" id="hudLevel">Mars Plains</span>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <span id="hint">Click the picture. Drive with the arrow keys or A / D. Stop right above a sample, then press Down or S.</span>
+    <div class="actions">
+      <button type="button" class="primary" id="collectBtn" aria-label="Collect sample">Collect sample</button>
+      <button type="button" class="drive" id="reverseBtn" aria-label="Reverse">&#9664; Reverse</button>
+      <button type="button" class="drive" id="forwardBtn" aria-label="Forward">Forward &#9654;</button>
+      <button type="button" class="secondary" id="restartBtn">Restart level</button>
+    </div>
+  </div>
+  <p class="toolbar complete" id="message" aria-live="polite"></p>
+
+  <section class="collection" aria-labelledby="collectionTitle">
+    <span class="label" id="collectionTitle">Rock collection</span>
+    <p class="collection-hint">Click a rock you found to learn about it.</p>
+    <div class="collection-slots" id="collectionSlots"></div>
+  </section>
+</main>
+
+<div class="rock-card-backdrop" id="rockCard" hidden>
+  <div class="rock-card" role="dialog" aria-modal="true" aria-labelledby="rockCardTitle">
+    <span class="label" id="rockCardHeading">New sample collected!</span>
+    <div class="rock-icon big" id="rockCardIcon"></div>
+    <h2 id="rockCardTitle">Rock</h2>
+    <p class="rock-type" id="rockCardType"></p>
+    <ul id="rockCardFacts"></ul>
+    <button type="button" class="primary" id="rockCardClose">Got it!</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---- Global physics -----------------------------------------------------
+  const GRAVITY = 3.72;            // m/s^2, global gravity for this mission
+
+  // ---- Rover ---------------------------------------------------------------
+  const ROVER_MASS  = 180;         // kg
+  const CHASSIS_W   = 2.2;         // m
+  const CHASSIS_H   = 0.5;         // m
+  const INERTIA     = ROVER_MASS * (CHASSIS_W * CHASSIS_W + CHASSIS_H * CHASSIS_H) / 12;
+  const WHEEL_R     = 0.38;        // m
+  // Wheel contact points in the chassis frame (x forward, y up), in metres
+  const WHEELS = [
+    { x: -0.95, y: -0.3 },
+    { x: -0.32, y: -0.3 },
+    { x:  0.32, y: -0.3 },
+    { x:  0.95, y: -0.3 }
+  ];
+  const SPRING_K   = 2500;         // N/m, suspension stiffness per wheel
+  const SPRING_C   = 270;          // N*s/m, suspension damping per wheel
+  const ROLL_RES   = 25;           // N*s/m, rolling resistance per wheel
+  const START_HP   = 35;           // rover health, same for every difficulty
+  const IMPACT_SPEED = 2.0;        // m/s, wheel hitting the ground/rock this hard counts as a strong collision
+  const IMPACT_COOLDOWN = 0.5;     // s, so one crash only costs HP once
+  const DAMAGE_TILT_DEG = 10;      // a strong collision only costs HP when the tilt is above this (degrees)
+  const STOP_SPEED = 0.1;          // m/s, the rover must be this still before a sample can be collected
+  const SUB_DT     = 1 / 480;      // fixed physics step (s)
+
+  // ---- Difficulty levels ------------------------------------------------------
+  // drive: motor force per wheel (N); maxSpeed: m/s before the motor fades;
+  // grip: friction coefficient; flipAngle: tilt (rad) that tips the rover over;
+  // roughness: how rocky the ground is; bumps / bigBumps: how many rocks and boulders
+  const LEVELS = {
+    easy: {
+      name: 'Mars Plains', label: 'Mars Plains',
+      drive: 380, maxSpeed: 2.2, grip: 0.95, flipAngle: 65 * Math.PI / 180,
+      roughness: 0.95, bumps: 60, bigBumps: 12, bumpWidth: 1.15, decorDensity: 0.6
+    },
+    medium: {
+      name: 'Highlands', label: 'Highlands',
+      drive: 420, maxSpeed: 2.8, grip: 0.85, flipAngle: 55 * Math.PI / 180,
+      roughness: 1.25, bumps: 100, bigBumps: 20, bumpWidth: 1.35, decorDensity: 0.75
+    },
+    hard: {
+      name: 'Mountainous Area', label: 'Mountainous Area',
+      drive: 520, maxSpeed: 3.4, grip: 0.68, flipAngle: 50 * Math.PI / 180,
+      roughness: 1.55, bumps: 150, bigBumps: 30, bumpWidth: 1.8, decorDensity: 0.9
+    }
+  };
+  const LEVEL_ORDER = ['easy', 'medium', 'hard'];
+
+  // ---- World ----------------------------------------------------------------
+  const WORLD_LEN   = 300;         // m
+  const TERRAIN_STEP = 0.1;        // m between terrain samples
+  const START_X     = 5;           // m
+  const SAMPLE_X    = [70, 115, 160];
+  const SAMPLE_TOTAL = SAMPLE_X.length;
+  // The three rock samples, based on rocks studied by NASA's Perseverance rover
+  const ROCKS = [
+    {
+      name: 'Rochette', type: 'Igneous rock', colorName: 'Yellow',
+      main: '#FFD23F', dark: '#A87B00',
+      facts: [
+        'It formed when hot, melted rock cooled down and turned solid.',
+        'It helps scientists study volcanoes on Mars.'
+      ]
+    },
+    {
+      name: 'Wildcat Ridge', type: 'Sedimentary rock', colorName: 'White',
+      main: '#F5F2EA', dark: '#9C958A',
+      facts: [
+        'It formed when small bits of rock piled up and pressed together.',
+        'Remember how sedimentary rocks form? Water once flowed on Mars!',
+        'It helps scientists learn about life on Mars.'
+      ]
+    },
+    {
+      name: 'Mudstone', type: 'Sedimentary rock', colorName: 'Red',
+      main: '#FF3B30', dark: '#8A0F0A',
+      facts: [
+        'Mudstones usually form in lakes and other bodies of water.',
+        'They help scientists study ancient lakes on Mars.',
+        'They also help scientists look for signs of life on Mars!'
+      ]
+    }
+  ];
+  const PICK_RADIUS = 1.0;         // m, how close (sideways) the rover must stop to collect
+  const VIEW_TOP_M  = 12;          // m of height shown vertically
+  const HORIZON_FRAC = 0.7;        // where y = 2 m sits on screen (fraction of height)
+  const FONT = '"Inter", "Segoe UI", system-ui, Arial, sans-serif';
+
+  // ---- Seeded random (same terrain every run for a given level) -------------
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ---- Smooth value noise ---------------------------------------------------
+  const LAT = 512;
+  const lattice = new Float64Array(LAT);
+  (function fillLattice() {
+    const rng = mulberry32(20260714);
+    for (let i = 0; i < LAT; i++) lattice[i] = rng() * 2 - 1;
+  })();
+
+  function vnoise(x) {
+    const i = Math.floor(x);
+    const f = x - i;
+    const s = f * f * (3 - 2 * f);
+    const a = lattice[((i % LAT) + LAT) % LAT];
+    const b = lattice[(((i + 1) % LAT) + LAT) % LAT];
+    return a + (b - a) * s;
+  }
+
+  function smoothstep(e0, e1, x) {
+    const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+    return t * t * (3 - 2 * t);
+  }
+
+  // ---- Terrain ----------------------------------------------------------------
+  const N = Math.round(WORLD_LEN / TERRAIN_STEP) + 1;
+  let terrain = new Float64Array(N);
+  let decor = [];
+
+  function buildTerrain(cfg) {
+    const rng = mulberry32(4242);
+    const bumps = [];
+    for (let k = 0; k < cfg.bumps; k++) {       // small and medium rocks
+      bumps.push({ c: 12 + rng() * (WORLD_LEN - 24), a: (0.12 + rng() * 0.3) * cfg.roughness, w: (0.5 + rng() * 0.6) * cfg.bumpWidth });
+    }
+    for (let k = 0; k < cfg.bigBumps; k++) {    // big boulders
+      bumps.push({ c: 20 + rng() * (WORLD_LEN - 40), a: (0.3 + rng() * 0.15) * cfg.roughness, w: (0.9 + rng() * 0.4) * cfg.bumpWidth });
+    }
+
+    const next = new Float64Array(N);
+    for (let i = 0; i < N; i++) {
+      const x = i * TERRAIN_STEP;
+      const ramp = smoothstep(8, 25, x);        // flat landing zone at the start
+      let h = 1.5 + 0.9 * vnoise(x / 25)
+                + ramp * cfg.roughness * (0.35 * vnoise(x / 7 + 13.1) + 0.12 * vnoise(x / 1.6 + 71.3));
+      for (let k = 0; k < bumps.length; k++) {
+        const b = bumps[k];
+        const d = (x - b.c) / b.w;
+        if (Math.abs(d) < 3) h += ramp * b.a * Math.exp(-d * d);
+      }
+      next[i] = h;
+    }
+    terrain = next;
+
+    // Decorative surface rocks (purely visual, do not affect physics)
+    const decorRng = mulberry32(777);
+    const nextDecor = [];
+    for (let x = 0; x < WORLD_LEN; x += 1.5) {
+      if (decorRng() < cfg.decorDensity) {
+        nextDecor.push({ x: x + decorRng() * 1.5, r: 0.08 + decorRng() * 0.25, shade: decorRng() });
+      }
+    }
+    decor = nextDecor;
+  }
+
+  function heightAt(x) {
+    const clamped = Math.min(WORLD_LEN, Math.max(0, x));
+    const idx = clamped / TERRAIN_STEP;
+    const i0 = Math.floor(idx);
+    const t = idx - i0;
+    const i1 = Math.min(N - 1, i0 + 1);
+    return terrain[i0] * (1 - t) + terrain[i1] * t;
+  }
+
+  function slopeAt(x) {
+    return (heightAt(x + 0.05) - heightAt(x - 0.05)) / 0.1;
+  }
+
+  // ---- DOM ------------------------------------------------------------------
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const overlayText = document.getElementById('overlayText');
+  const hudHp = document.getElementById('hudHp');
+  const tryAgainBtn = document.getElementById('tryAgainBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const hudSamples = document.getElementById('hudSamples');
+  const hudSpeed = document.getElementById('hudSpeed');
+  const hudTilt = document.getElementById('hudTilt');
+  const hudLevel = document.getElementById('hudLevel');
+  const messageEl = document.getElementById('message');
+  const hintEl = document.getElementById('hint');
+  const levelButtons = Array.prototype.slice.call(document.querySelectorAll('button.level'));
+  const collectionSlots = document.getElementById('collectionSlots');
+  const rockCard = document.getElementById('rockCard');
+  const rockCardBox = rockCard.querySelector('.rock-card');
+  const rockCardHeading = document.getElementById('rockCardHeading');
+  const rockCardIcon = document.getElementById('rockCardIcon');
+  const rockCardTitle = document.getElementById('rockCardTitle');
+  const rockCardType = document.getElementById('rockCardType');
+  const rockCardFacts = document.getElementById('rockCardFacts');
+  const rockCardClose = document.getElementById('rockCardClose');
+
+  // ---- State ----------------------------------------------------------------
+  let levelKey = 'easy';
+  let cfg = LEVELS.easy;
+  const unlocked = { easy: true, medium: true, hard: true };   // every difficulty is always open
+  const beaten = { easy: false, medium: false, hard: false };
+  let completionSent = false;      // MISSION_COMPLETE is sent once, after the final boss
+
+  const rover = {
+    x: 0, y: 0, vx: 0, vy: 0, th: 0, w: 0, wheelRot: 0,
+    flipped: false
+  };
+  const collected = new Set();     // samples picked up in the current run
+  const found = new Set();         // rock types in the collection (kept across levels and restarts)
+  let cardOpen = false;            // the game pauses while a rock pop-up is open
+  const keys = { left: false, right: false };
+  let throttle = 0;
+  let hp = START_HP;
+  let impactCooldown = 0;
+  let camX = 0;
+
+  function clamp(v, lo, hi) {
+    return v < lo ? lo : (v > hi ? hi : v);
+  }
+
+  function resetRover() {
+    rover.x = START_X;
+    rover.y = heightAt(START_X) + WHEEL_R + 0.6;
+    rover.vx = 0;
+    rover.vy = 0;
+    rover.th = 0;
+    rover.w = 0;
+    rover.flipped = false;
+    hp = START_HP;
+    impactCooldown = 0;
+    overlay.classList.remove('show');
+  }
+
+  function restartLevel() {
+    collected.clear();
+    resetRover();
+    messageEl.textContent = '';
+  }
+
+  // ---- Difficulty -------------------------------------------------------------
+  function updateLevelButtons() {
+    levelButtons.forEach(function (btn) {
+      const key = btn.getAttribute('data-level');
+      const isLocked = !unlocked[key];
+      btn.setAttribute('aria-pressed', key === levelKey ? 'true' : 'false');
+      btn.setAttribute('aria-disabled', isLocked ? 'true' : 'false');
+      btn.textContent = LEVELS[key].label
+        + (beaten[key] ? ' ✓' : '')
+        + (isLocked ? ' (locked)' : '');
+    });
+  }
+
+  function setLevel(key) {
+    if (!unlocked[key]) {
+      messageEl.textContent = 'Finish the level before this one to unlock it.';
+      return;
+    }
+    levelKey = key;
+    cfg = LEVELS[key];
+    buildTerrain(cfg);
+    hudLevel.textContent = cfg.name;
+    updateLevelButtons();
+    restartLevel();
+  }
+
+  levelButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      setLevel(btn.getAttribute('data-level'));
+    });
+  });
+
+  // ---- Physics --------------------------------------------------------------
+  function physicsStep(dt) {
+    const r = rover;
+    throttle = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    if (impactCooldown > 0) impactCooldown -= dt;
+
+    const c = Math.cos(r.th);
+    const s = Math.sin(r.th);
+    let fx = 0;
+    let fy = -ROVER_MASS * GRAVITY;   // gravity
+    let tau = 0;
+
+    for (let i = 0; i < WHEELS.length; i++) {
+      const m = WHEELS[i];
+      const rx = c * m.x - s * m.y;   // wheel offset from centre of mass (world frame)
+      const ry = s * m.x + c * m.y;
+      const wx = r.x + rx;
+      const wy = r.y + ry;
+
+      const pen = heightAt(wx) + WHEEL_R - wy;   // how far the wheel is pushed into the ground
+      if (pen <= 0) continue;
+
+      const slope = slopeAt(wx);
+      const nLen = Math.sqrt(1 + slope * slope);
+      const nx = -slope / nLen, ny = 1 / nLen;   // ground normal
+      const tx = 1 / nLen, ty = slope / nLen;    // ground tangent (forward)
+
+      // Velocity of the contact point (linear + rotational)
+      const vpx = r.vx - r.w * ry;
+      const vpy = r.vy + r.w * rx;
+      const vn = vpx * nx + vpy * ny;
+      const Fn = SPRING_K * pen - SPRING_C * vn;  // suspension force along the normal
+      if (Fn <= 0) continue;
+
+      // Strong collision: the wheel slams into the ground or a rock
+      if (vn < -IMPACT_SPEED && impactCooldown <= 0) registerImpact();
+
+      const vt = vpx * tx + vpy * ty;             // forward speed at this wheel
+      // Motor force fades as speed approaches the level's top speed
+      const motor = throttle * cfg.drive * clamp(1 - throttle * vt / cfg.maxSpeed, 0, 1);
+      let Ft = motor - ROLL_RES * vt;
+      const lim = cfg.grip * Fn;                  // friction cannot exceed grip
+      Ft = clamp(Ft, -lim, lim);
+
+      const Fx = Fn * nx + Ft * tx;
+      const Fy = Fn * ny + Ft * ty;
+      fx += Fx;
+      fy += Fy;
+      tau += rx * Fy - ry * Fx;
+    }
+
+    tau -= 2 * r.w;                               // a little rotational damping
+
+    // Semi-implicit Euler integration
+    r.vx += (fx / ROVER_MASS) * dt;
+    r.vy += (fy / ROVER_MASS) * dt;
+    r.w  += (tau / INERTIA) * dt;
+    r.x  += r.vx * dt;
+    r.y  += r.vy * dt;
+    r.th += r.w * dt;
+
+    // Keep the rover on the map
+    if (r.x < 1)              { r.x = 1; if (r.vx < 0) r.vx = 0; }
+    if (r.x > WORLD_LEN - 2)  { r.x = WORLD_LEN - 2; if (r.vx > 0) r.vx = 0; }
+
+    r.wheelRot += (r.vx / WHEEL_R) * dt;
+  }
+
+  // Damage = tilt in degrees / 10 at the moment of a strong collision
+  function registerImpact() {
+    impactCooldown = IMPACT_COOLDOWN;
+    const tiltDeg = Math.abs(Math.atan2(Math.sin(rover.th), Math.cos(rover.th))) * 180 / Math.PI;
+    if (tiltDeg <= DAMAGE_TILT_DEG) return;   // only a tilt above 10 degrees costs HP
+    hp = Math.max(0, hp - tiltDeg / 10);
+  }
+
+  function checkFlip() {
+    const a = Math.atan2(Math.sin(rover.th), Math.cos(rover.th));
+    if (Math.abs(a) > cfg.flipAngle) {
+      rover.flipped = true;
+      overlayText.textContent = 'The rover tipped over.';
+      overlay.classList.add('show');
+      tryAgainBtn.focus();
+      return true;
+    }
+    return false;
+  }
+
+  // ---- Progress -----------------------------------------------------------------
+  function onLevelComplete() {
+    if (beaten[levelKey]) return;
+    beaten[levelKey] = true;
+
+    if (levelKey === 'hard') {
+      if (!completionSent) {
+        completionSent = true;
+        messageEl.textContent = 'Final boss defeated! Mission complete.';
+        window.parent.postMessage({ type: 'MISSION_COMPLETE', missionId: 2 }, '*');
+      }
+    } else {
+      messageEl.textContent = LEVELS[levelKey].name + ' level complete! Try a harder one.';
+    }
+    updateLevelButtons();
+  }
+
+  // Samples are collected only when the rover is stopped right above one
+  // and the player presses Down / S (or the Collect button).
+  function tryCollect() {
+    if (rover.flipped || cardOpen) return;
+    const onGround = rover.y - heightAt(rover.x) < 1.0;
+    for (let i = 0; i < SAMPLE_X.length; i++) {
+      if (collected.has(i)) continue;
+      const close = Math.abs(rover.x - SAMPLE_X[i]) < PICK_RADIUS;
+      if (close && onGround) {
+        if (Math.abs(rover.vx) > STOP_SPEED || Math.abs(rover.w) > STOP_SPEED) {
+          messageEl.textContent = 'Stop completely before collecting the sample.';
+          return;
+        }
+        collected.add(i);
+        found.add(i);
+        renderCollection();
+        messageEl.textContent = 'You collected ' + ROCKS[i].name + '!';
+        if (collected.size === SAMPLE_TOTAL) onLevelComplete();
+        openRockCard(i, true);
+        return;
+      }
+    }
+    messageEl.textContent = 'No sample here. Stop right above a sample, then press Down.';
+  }
+
+  // ---- Rock collection and pop-up ---------------------------------------------
+  function paintRock(el, rock) {
+    el.style.setProperty('--rock-main', rock.main);
+    el.style.setProperty('--rock-dark', rock.dark);
+  }
+
+  function renderCollection() {
+    collectionSlots.textContent = '';
+    ROCKS.forEach(function (rock, i) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'rock-slot';
+      const icon = document.createElement('span');
+      icon.className = 'rock-icon';
+      const text = document.createElement('span');
+      const small = document.createElement('small');
+      if (found.has(i)) {
+        paintRock(btn, rock);
+        small.textContent = rock.colorName + ' · ' + rock.type;
+        text.appendChild(small);
+        text.appendChild(document.createTextNode(rock.name));
+        btn.setAttribute('aria-label', 'Learn about ' + rock.name);
+        btn.addEventListener('click', function () { openRockCard(i, false); });
+      } else {
+        btn.disabled = true;
+        small.textContent = 'Sample ' + (i + 1);
+        text.appendChild(small);
+        text.appendChild(document.createTextNode('Not found yet'));
+      }
+      btn.appendChild(icon);
+      btn.appendChild(text);
+      collectionSlots.appendChild(btn);
+    });
+  }
+
+  function openRockCard(i, isNew) {
+    const rock = ROCKS[i];
+    keys.left = false;
+    keys.right = false;
+    reverseBtn.classList.remove('held');
+    forwardBtn.classList.remove('held');
+    paintRock(rockCardBox, rock);
+    rockCardHeading.textContent = isNew ? 'New sample collected!' : 'Rock collection';
+    rockCardTitle.textContent = rock.name;
+    rockCardType.textContent = rock.colorName + ' · ' + rock.type;
+    rockCardFacts.textContent = '';
+    rock.facts.forEach(function (f) {
+      const li = document.createElement('li');
+      li.textContent = f;
+      rockCardFacts.appendChild(li);
+    });
+    rockCard.hidden = false;
+    cardOpen = true;
+    rockCardClose.focus();
+  }
+
+  function closeRockCard() {
+    if (!cardOpen) return;
+    rockCard.hidden = true;
+    cardOpen = false;
+    last = performance.now();
+    canvas.focus();
+  }
+
+  rockCardClose.addEventListener('click', closeRockCard);
+  rockCard.addEventListener('click', function (e) {
+    if (e.target === rockCard) closeRockCard();
+  });
+
+  // ---- Drawing --------------------------------------------------------------
+  let W = 0, H = 0, ppm = 40;
+
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    W = canvas.clientWidth;
+    H = canvas.clientHeight;
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ppm = H / VIEW_TOP_M;
+  }
+
+  function toScreen(wx, wy) {
+    return [(wx - camX) * ppm, H * HORIZON_FRAC - (wy - 2) * ppm];
+  }
+
+  function drawBackground() {
+    const sky = ctx.createLinearGradient(0, 0, 0, H * HORIZON_FRAC);
+    sky.addColorStop(0, '#0E0A08');
+    sky.addColorStop(1, '#6B3A27');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H);
+
+    // Distant ridge (slower parallax)
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    for (let sx = 0; sx <= W; sx += 8) {
+      const wx = camX * 0.4 + sx / ppm;
+      const ridge = H * HORIZON_FRAC - 40 - (1.2 + 0.9 * vnoise(wx / 18 + 200)) * ppm;
+      ctx.lineTo(sx, ridge);
+    }
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    ctx.fillStyle = '#3F2216';
+    ctx.fill();
+  }
+
+  function drawTerrain() {
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    for (let sx = 0; sx <= W; sx += 3) {
+      const wx = camX + sx / ppm;
+      const [, y] = toScreen(wx, heightAt(wx));
+      ctx.lineTo(sx, y);
+    }
+    ctx.lineTo(W, H);
+    ctx.closePath();
+    const g = ctx.createLinearGradient(0, H * HORIZON_FRAC - 6 * ppm, 0, H);
+    g.addColorStop(0, '#B9562A');
+    g.addColorStop(1, '#5C2715');
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    // Surface edge
+    ctx.beginPath();
+    for (let sx = 0; sx <= W; sx += 3) {
+      const wx = camX + sx / ppm;
+      const [px, py] = toScreen(wx, heightAt(wx));
+      if (sx === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#E08A5A';
+    ctx.stroke();
+
+    // Rocks lying on the surface
+    for (let i = 0; i < decor.length; i++) {
+      const d = decor[i];
+      if (d.x < camX - 1 || d.x > camX + W / ppm + 1) continue;
+      const [px, py] = toScreen(d.x, heightAt(d.x));
+      const rr = d.r * ppm;
+      ctx.beginPath();
+      ctx.ellipse(px, py - rr * 0.3, rr, rr * 0.7, 0, 0, Math.PI * 2);
+      ctx.fillStyle = d.shade > 0.5 ? '#7A3A20' : '#4A2213';
+      ctx.fill();
+    }
+  }
+
+  // A beautiful crystal rock sitting on the ground at (px, py)
+  function drawGemRock(px, py, c, done, inRange) {
+    const s = 0.75 * ppm;
+
+    // Shadow on the surface
+    ctx.beginPath();
+    ctx.ellipse(px, py + 2, s * 0.95, s * 0.22, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.fill();
+
+    // Faceted crystal outline (units of s; negative y is up)
+    const pts = [[-0.9, 0], [-0.7, -0.75], [-0.1, -1.05], [0.55, -0.85], [0.95, -0.25], [0.75, 0], [0.2, 0.05]];
+    ctx.beginPath();
+    pts.forEach(function (p, k) {
+      const x = px + p[0] * s;
+      const y = py + p[1] * s;
+      if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    const g = ctx.createLinearGradient(px - s, py - s * 1.05, px + s, py);
+    g.addColorStop(0, done ? '#6B727C' : c.main);
+    g.addColorStop(1, done ? '#3A3F46' : c.dark);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = done ? '#A7ADB5' : '#FFFFFF';
+    ctx.stroke();
+
+    if (!done) {
+      // Facet lines
+      ctx.beginPath();
+      ctx.moveTo(px - 0.1 * s, py - 1.05 * s); ctx.lineTo(px - 0.3 * s, py);
+      ctx.moveTo(px + 0.55 * s, py - 0.85 * s); ctx.lineTo(px + 0.2 * s, py);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Twinkling sparkle
+      const tw = 0.5 + 0.5 * Math.sin(performance.now() / 300 + px);
+      const sx = px - 0.45 * s, sy = py - 0.85 * s, sr = 3 + 5 * tw;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - sr); ctx.lineTo(sx + sr * 0.25, sy);
+      ctx.lineTo(sx, sy + sr); ctx.lineTo(sx - sr * 0.25, sy);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.5 + 0.5 * tw).toFixed(2) + ')';
+      ctx.fill();
+    } else {
+      // Check mark for a collected sample
+      ctx.beginPath();
+      ctx.moveTo(px - 0.25 * s, py - 0.5 * s);
+      ctx.lineTo(px - 0.05 * s, py - 0.3 * s);
+      ctx.lineTo(px + 0.3 * s, py - 0.7 * s);
+      ctx.strokeStyle = '#3DDC84';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    // Dashed ring shows the spot to stop on
+    if (inRange) {
+      ctx.beginPath();
+      ctx.arc(px, py - 0.4 * s, 1.3 * s, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(0, 183, 255, 0.9)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  function drawSamples() {
+    for (let i = 0; i < SAMPLE_X.length; i++) {
+      const sx = SAMPLE_X[i];
+      if (sx < camX - 2 || sx > camX + W / ppm + 2) continue;
+      const [px, py] = toScreen(sx, heightAt(sx));
+      const done = collected.has(i);
+      const inRange = !done && Math.abs(rover.x - sx) < PICK_RADIUS;
+      drawGemRock(px, py, ROCKS[i], done, inRange);
+      ctx.fillStyle = done ? '#A7ADB5' : '#FFFFFF';
+      ctx.font = '700 18px ' + FONT;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      const labelText = done ? ROCKS[i].name : (inRange ? 'Press Down / S' : 'Sample ' + (i + 1));
+      ctx.fillText(labelText, px, py - 0.9 * ppm);
+    }
+  }
+
+  function drawRover() {
+    const [sx, sy] = toScreen(rover.x, rover.y);
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(-rover.th);            // world rotation is counter-clockwise on screen
+
+    const toLocal = function (mx, my) { return [mx * ppm, -my * ppm]; };
+
+    // Wheels
+    for (let i = 0; i < WHEELS.length; i++) {
+      const [wx, wy] = toLocal(WHEELS[i].x, WHEELS[i].y);
+      ctx.beginPath();
+      ctx.arc(wx, wy, WHEEL_R * ppm, 0, Math.PI * 2);
+      ctx.fillStyle = '#2A2F36';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#A7ADB5';
+      ctx.stroke();
+      // Spoke shows wheel spin
+      const a = rover.wheelRot;
+      ctx.beginPath();
+      ctx.moveTo(wx, wy);
+      ctx.lineTo(wx + Math.cos(a) * WHEEL_R * ppm * 0.9, wy + Math.sin(a) * WHEEL_R * ppm * 0.9);
+      ctx.strokeStyle = '#6B727C';
+      ctx.stroke();
+    }
+
+    // Chassis
+    const [cxL, cyT] = toLocal(-CHASSIS_W / 2, CHASSIS_H / 2);
+    ctx.fillStyle = '#D9D9D9';
+    ctx.fillRect(cxL, cyT, CHASSIS_W * ppm, CHASSIS_H * ppm);
+
+    // Solar panels (dark blue)
+    ctx.fillStyle = '#1B3A6B';
+    const [pxL, pyT] = toLocal(-CHASSIS_W / 2 + 0.2, CHASSIS_H / 2 + 0.55);
+    ctx.fillRect(pxL, pyT, 0.9 * ppm, 0.5 * ppm);
+    ctx.strokeStyle = '#A7ADB5';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(pxL, pyT, 0.9 * ppm, 0.5 * ppm);
+
+    // Mast with camera
+    const [mxL, myT] = toLocal(0.45, CHASSIS_H / 2);
+    ctx.beginPath();
+    ctx.moveTo(mxL, myT);
+    ctx.lineTo(mxL, myT - 0.6 * ppm);
+    ctx.strokeStyle = '#D9D9D9';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.fillStyle = '#00B7FF';
+    ctx.fillRect(mxL - 0.12 * ppm, myT - 0.75 * ppm, 0.3 * ppm, 0.2 * ppm);
+
+    ctx.restore();
+  }
+
+  function drawFrame() {
+    camX = clamp(rover.x - 0.35 * W / ppm, 0, Math.max(0, WORLD_LEN - W / ppm));
+    ctx.clearRect(0, 0, W, H);
+    drawBackground();
+    drawTerrain();
+    drawSamples();
+    drawRover();
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#00E5FF';
+    ctx.font = '700 18px ' + FONT;
+    ctx.fillText('NASA PERSEVERANCE ROVER', 12, 12);
+    ctx.fillStyle = '#EAF2FF';
+    ctx.font = '500 18px ' + FONT;
+    ctx.fillText('Gravity 3.72 m/s²  ·  ' + cfg.name, 12, 34);
+  }
+
+  function updateHud() {
+    hudSamples.textContent = collected.size + ' / ' + SAMPLE_TOTAL;
+    hudSpeed.textContent = Math.abs(rover.vx).toFixed(1) + ' m/s';
+    const tilt = Math.abs(Math.atan2(Math.sin(rover.th), Math.cos(rover.th))) * 180 / Math.PI;
+    hudTilt.textContent = Math.round(tilt) + '°';
+    hudHp.textContent = Math.ceil(hp) + ' / ' + START_HP;
+  }
+
+  // ---- Hint text --------------------------------------------------------------
+  let hintShownOnce = false;
+  function markControlsUsed() {
+    if (hintShownOnce) return;
+    hintShownOnce = true;
+    hintEl.textContent = 'Drive with the arrow keys or A / D, or hold the drive buttons.';
+  }
+
+  // ---- Keyboard -------------------------------------------------------------
+  function setKey(e, down) {
+    const k = e.key;
+    if (k === 'ArrowLeft' || k === 'a' || k === 'A') keys.left = down;
+    if (k === 'ArrowRight' || k === 'd' || k === 'D') keys.right = down;
+    if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowDown' || k === ' ') {
+      e.preventDefault();
+    }
+    if (down) markControlsUsed();
+  }
+
+  window.addEventListener('keydown', function (e) {
+    if (cardOpen) {
+      if (e.key === 'Escape') closeRockCard();
+      return;
+    }
+    setKey(e, true);
+    if ((e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') && !e.repeat) tryCollect();
+  });
+  window.addEventListener('keyup', function (e) { setKey(e, false); });
+  window.addEventListener('blur', function () { keys.left = false; keys.right = false; });
+
+  // Clicking the game gives it keyboard focus (needed when embedded in an iframe)
+  canvas.addEventListener('pointerdown', function () { canvas.focus(); });
+
+  // ---- On-screen drive buttons (work without a keyboard) ----------------------
+  const reverseBtn = document.getElementById('reverseBtn');
+  const forwardBtn = document.getElementById('forwardBtn');
+
+  function holdButton(btn, key) {
+    function press(e) {
+      e.preventDefault();
+      if (cardOpen) return;
+      keys[key] = true;
+      btn.classList.add('held');
+      markControlsUsed();
+    }
+    function release() {
+      keys[key] = false;
+      btn.classList.remove('held');
+    }
+    btn.addEventListener('pointerdown', press);
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointerleave', release);
+    btn.addEventListener('pointercancel', release);
+  }
+
+  holdButton(reverseBtn, 'left');
+  holdButton(forwardBtn, 'right');
+
+  // ---- Buttons --------------------------------------------------------------
+  tryAgainBtn.addEventListener('click', resetRover);
+  restartBtn.addEventListener('click', restartLevel);
+  document.getElementById('collectBtn').addEventListener('click', tryCollect);
+  window.addEventListener('resize', resizeCanvas);
+
+  // ---- Loop -----------------------------------------------------------------
+  let last = performance.now();
+  let acc = 0;
+
+  function frame(now) {
+    const elapsed = Math.min((now - last) / 1000, 0.05);
+    last = now;
+
+    if (!rover.flipped && hp <= 0) {
+      rover.flipped = true;
+      overlayText.textContent = 'The rover is out of HP.';
+      overlay.classList.add('show');
+      tryAgainBtn.focus();
+    }
+
+    if (cardOpen) {
+      acc = 0;                       // paused while reading about a rock
+    } else if (!rover.flipped) {
+      acc += elapsed;
+      while (acc >= SUB_DT) {
+        physicsStep(SUB_DT);
+        acc -= SUB_DT;
+        if (checkFlip()) { acc = 0; break; }
+      }
+    } else {
+      acc = 0;
+    }
+
+    drawFrame();
+    updateHud();
+    requestAnimationFrame(frame);
+  }
+
+  // ---- Start ----------------------------------------------------------------
+  resizeCanvas();
+  buildTerrain(cfg);
+  hudLevel.textContent = cfg.name;
+  updateLevelButtons();
+  renderCollection();
+  resetRover();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

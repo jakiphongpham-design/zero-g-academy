@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission 01 - Gravity Drop</title>
+<style>
+  /* Design tokens (copied from SYSTEM_ARCHITECTURE.md §2.2 so this file stays self-contained) */
+  :root {
+    --zg-bg:            #000000;
+    --zg-surface:       #0B0D10;
+    --zg-surface-2:     #14171C;
+    --zg-border:        #2A2F36;
+    --zg-border-strong: #5A616B;
+    --zg-text:          #FFFFFF;
+    --zg-text-muted:    #A7ADB5;
+    --zg-text-dim:      #6B727C;
+    --zg-accent-blue:   #00B7FF;
+    --zg-accent-orange: #FF6A13;
+    --zg-success:       #3DDC84;
+    --zg-locked:        #3A3F46;
+    --zg-font: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    --zg-font-mono: "JetBrains Mono", Consolas, "Courier New", monospace;
+    --zg-fs-label: 0.75rem;
+    --zg-fs-body:  1.125rem;
+    --zg-fs-h2:    1.75rem;
+    --zg-radius:     6px;
+    --zg-radius-pill: 999px;
+    --zg-tap:        48px;
+    --zg-gap:        1.5rem;
+    --zg-dur:        180ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root { --zg-dur: 0ms; }
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    background: var(--zg-bg);
+    color: var(--zg-text);
+    font-family: var(--zg-font);
+  }
+
+  body { padding: 20px; min-height: 100vh; }
+
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .label {
+    font-size: var(--zg-fs-label);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--zg-text-muted);
+  }
+
+  h1 {
+    font-size: var(--zg-fs-h2);
+    font-weight: 700;
+    margin: 6px 0 0;
+  }
+
+  .intro {
+    margin: 6px 0 0;
+    font-size: var(--zg-fs-body);
+    color: var(--zg-text-muted);
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+
+  select {
+    min-height: var(--zg-tap);
+    padding: 0 14px;
+    font-family: inherit;
+    font-size: var(--zg-fs-body);
+    color: var(--zg-text);
+    background: var(--zg-surface);
+    border: 1px solid var(--zg-border-strong);
+    border-radius: var(--zg-radius);
+  }
+
+  button {
+    min-height: var(--zg-tap);
+    padding: 0 24px;
+    font-family: inherit;
+    font-size: var(--zg-fs-body);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-radius: var(--zg-radius-pill);
+    cursor: pointer;
+    transition: box-shadow var(--zg-dur) var(--zg-ease, ease);
+  }
+
+  button.primary {
+    color: #000000;
+    background: var(--zg-accent-blue);
+    border: none;
+  }
+
+  button.primary:hover,
+  button.primary:focus-visible {
+    box-shadow: 0 0 16px var(--zg-accent-blue);
+  }
+
+  button.secondary {
+    color: var(--zg-accent-orange);
+    background: transparent;
+    border: 1px solid var(--zg-accent-orange);
+  }
+
+  button.secondary:hover,
+  button.secondary:focus-visible {
+    background: var(--zg-surface-2);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--zg-gap);
+  }
+
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    background: var(--zg-surface);
+    border: 1px solid var(--zg-border);
+    border-radius: var(--zg-radius);
+    min-width: 0;
+  }
+
+  .card h2 {
+    margin: 0;
+    font-size: var(--zg-fs-body);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 360px;
+    border: 1px solid var(--zg-border);
+    border-radius: 4px;
+    background: #000000;
+  }
+
+  dl {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 12px;
+    margin: 0;
+    font-size: var(--zg-fs-body);
+  }
+
+  dt { color: var(--zg-text-muted); }
+  dd { margin: 0; font-family: var(--zg-font-mono); color: var(--zg-text); text-align: right; }
+
+  .status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border: 1px solid var(--zg-border-strong);
+    border-radius: var(--zg-radius-pill);
+    font-size: var(--zg-fs-label);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--zg-text-muted);
+  }
+
+  .status-badge.ready { border-color: var(--zg-accent-blue); color: var(--zg-accent-blue); }
+  .status-badge.bouncing { border-color: var(--zg-accent-orange); color: var(--zg-accent-orange); }
+  .status-badge.rest { border-color: var(--zg-success); color: var(--zg-success); }
+
+  .footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--zg-gap);
+    font-size: var(--zg-fs-body);
+    color: var(--zg-text-muted);
+  }
+
+  .progress-value { font-family: var(--zg-font-mono); color: var(--zg-text); }
+
+  .complete {
+    color: var(--zg-success);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  @media (max-width: 900px) {
+    canvas { height: 280px; }
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 12px; }
+    .grid { gap: 12px; }
+    .card { padding: 10px; }
+    dl { font-size: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="label">Mission 01 &middot; Zero-G</div>
+    <h1>Gravity Drop</h1>
+    <p class="intro">Pick an object, then drop it on Earth, the Moon and Mars at once.</p>
+  </div>
+
+  <div class="controls">
+    <div class="field">
+      <label class="label" for="massSelect">Object (mass)</label>
+      <select id="massSelect">
+        <option value="apple">Apple - 10 kg</option>
+        <option value="pumpkin">Pumpkin - 25 kg</option>
+        <option value="sofa">Sofa - 75 kg</option>
+        <option value="piano">Piano - 250 kg</option>
+        <option value="anvil">Anvil - 500 kg</option>
+        <option value="boulder">Boulder - 1000 kg</option>
+      </select>
+    </div>
+    <button type="button" class="primary" id="dropBtn">Drop object</button>
+    <button type="button" class="secondary" id="resetBtn">Reset</button>
+  </div>
+</header>
+
+<main class="grid">
+  <section class="card" data-world="earth">
+    <h2>Earth</h2>
+    <canvas aria-label="Earth: object falling and bouncing under 9.81 m/s squared gravity"></canvas>
+    <span class="status-badge" data-field="status">Ready</span>
+    <dl>
+      <dt>Gravity</dt><dd>9.81 m/s&sup2;</dd>
+      <dt>Height</dt><dd data-field="height">0.00 m</dd>
+      <dt>Speed</dt><dd data-field="speed">0.00 m/s</dd>
+      <dt>Kinetic energy</dt><dd data-field="ke">0 J</dd>
+      <dt>Last impact</dt><dd data-field="impact">0 J</dd>
+      <dt>Bounces</dt><dd data-field="bounces">0</dd>
+    </dl>
+  </section>
+
+  <section class="card" data-world="moon">
+    <h2>Moon</h2>
+    <canvas aria-label="Moon: object falling and bouncing under 1.62 m/s squared gravity"></canvas>
+    <span class="status-badge" data-field="status">Ready</span>
+    <dl>
+      <dt>Gravity</dt><dd>1.62 m/s&sup2;</dd>
+      <dt>Height</dt><dd data-field="height">0.00 m</dd>
+      <dt>Speed</dt><dd data-field="speed">0.00 m/s</dd>
+      <dt>Kinetic energy</dt><dd data-field="ke">0 J</dd>
+      <dt>Last impact</dt><dd data-field="impact">0 J</dd>
+      <dt>Bounces</dt><dd data-field="bounces">0</dd>
+    </dl>
+  </section>
+
+  <section class="card" data-world="mars">
+    <h2>Mars</h2>
+    <canvas aria-label="Mars: object falling and bouncing under 3.71 m/s squared gravity"></canvas>
+    <span class="status-badge" data-field="status">Ready</span>
+    <dl>
+      <dt>Gravity</dt><dd>3.71 m/s&sup2;</dd>
+      <dt>Height</dt><dd data-field="height">0.00 m</dd>
+      <dt>Speed</dt><dd data-field="speed">0.00 m/s</dd>
+      <dt>Kinetic energy</dt><dd data-field="ke">0 J</dd>
+      <dt>Last impact</dt><dd data-field="impact">0 J</dd>
+      <dt>Bounces</dt><dd data-field="bounces">0</dd>
+    </dl>
+  </section>
+</main>
+
+<div class="footer">
+  <span>Each bounce keeps 70% of the kinetic energy.</span>
+  <span>Combinations tried: <span class="progress-value" id="progress">0 / 18</span></span>
+  <span id="message" class="complete" aria-live="polite"></span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---- Physics constants -------------------------------------------------
+  const DROP_HEIGHT_M = 20;     // release height above the surface (m)
+  const VIEW_TOP_M    = 25;     // height shown at the top of each canvas (m)
+  const RETAIN_ENERGY = 0.7;    // fraction of kinetic energy kept per bounce
+  const BOUNCE_SPEED  = Math.sqrt(RETAIN_ENERGY); // speed factor: KE scales by 0.7
+  const REST_SPEED    = 0.15;   // below this rebound speed (m/s) the object comes to rest
+  const SUB_DT       = 1 / 240; // fixed physics step (s) for stable bouncing
+  const FONT = '"Inter", "Segoe UI", system-ui, Arial, sans-serif';
+
+  // ---- Worlds (one canvas column each) -----------------------------------
+  const WORLDS = [
+    { key: 'earth', name: 'Earth', g: 9.81, sky: '#04111F', skyLow: '#0B2A44', ground: '#1E5C3A', ground2: '#2E7D4F', accent: '#00B7FF' },
+    { key: 'moon',  name: 'Moon',  g: 1.62, sky: '#000000', skyLow: '#0D0D0F', ground: '#6B6E73', ground2: '#8A8D92', accent: '#A7ADB5' },
+    { key: 'mars',  name: 'Mars',  g: 3.71, sky: '#1A0700', skyLow: '#3A1404', ground: '#8A3B1C', ground2: '#B9562A', accent: '#FF6A13' }
+  ];
+
+  // ---- Objects, from light to heavy --------------------------------------
+  const OBJECTS = [
+    { key: 'apple',   name: 'Apple',   mass: 10 },
+    { key: 'pumpkin', name: 'Pumpkin', mass: 25 },
+    { key: 'sofa',    name: 'Sofa',    mass: 75 },
+    { key: 'piano',   name: 'Piano',   mass: 250 },
+    { key: 'anvil',   name: 'Anvil',   mass: 500 },
+    { key: 'boulder', name: 'Boulder', mass: 1000 }
+  ];
+
+  const TOTAL_COMBOS = WORLDS.length * OBJECTS.length;
+
+  // ---- DOM ----------------------------------------------------------------
+  const selectEl  = document.getElementById('massSelect');
+  const dropBtn   = document.getElementById('dropBtn');
+  const resetBtn  = document.getElementById('resetBtn');
+  const progressEl = document.getElementById('progress');
+  const messageEl = document.getElementById('message');
+
+  const sims = WORLDS.map(function (world) {
+    const card = document.querySelector('.card[data-world="' + world.key + '"]');
+    const canvas = card.querySelector('canvas');
+    return {
+      world: world,
+      card: card,
+      canvas: canvas,
+      ctx: canvas.getContext('2d'),
+      w: 0,
+      h: 0,
+      body: null,
+      fields: {
+        status:  card.querySelector('[data-field="status"]'),
+        height:  card.querySelector('[data-field="height"]'),
+        speed:   card.querySelector('[data-field="speed"]'),
+        ke:      card.querySelector('[data-field="ke"]'),
+        impact:  card.querySelector('[data-field="impact"]'),
+        bounces: card.querySelector('[data-field="bounces"]')
+      }
+    };
+  });
+
+  // ---- State --------------------------------------------------------------
+  let selected = OBJECTS[0];
+  const tried = new Set();   // "world|object" pairs the student has dropped
+  let completionSent = false;
+
+  function currentObject() {
+    return OBJECTS.find(function (o) { return o.key === selectEl.value; }) || OBJECTS[0];
+  }
+
+  function kineticEnergy(mass, speed) {
+    return 0.5 * mass * speed * speed;
+  }
+
+  function formatJ(value) {
+    if (value >= 1000) return Math.round(value).toLocaleString('en-US') + ' J';
+    return value.toFixed(value < 10 ? 1 : 0) + ' J';
+  }
+
+  // ---- Simulation ---------------------------------------------------------
+  function dropAll() {
+    selected = currentObject();
+    sims.forEach(function (sim) {
+      sim.body = {
+        mass: selected.mass,
+        y: DROP_HEIGHT_M,   // height of the object's base above the surface (m)
+        vy: 0,              // vertical velocity (m/s, positive = up)
+        bounces: 0,
+        impactKE: 0,
+        resting: false
+      };
+      tried.add(sim.world.key + '|' + selected.key);
+    });
+    checkCompletion();
+    updateProgress();
+  }
+
+  function stepBody(sim, dt) {
+    const b = sim.body;
+    if (!b || b.resting) return;
+
+    b.vy -= sim.world.g * dt;
+    b.y  += b.vy * dt;
+
+    if (b.y <= 0) {
+      b.y = 0;
+      const impactSpeed = -b.vy;                       // speed just before contact (m/s)
+      b.impactKE = kineticEnergy(b.mass, impactSpeed); // kinetic energy at impact (J)
+      b.bounces += 1;
+
+      const reboundSpeed = impactSpeed * BOUNCE_SPEED; // keeps 70% of the kinetic energy
+      if (reboundSpeed < REST_SPEED) {
+        b.vy = 0;
+        b.resting = true;
+      } else {
+        b.vy = reboundSpeed;
+      }
+    }
+  }
+
+  // ---- Drawing ------------------------------------------------------------
+  function resizeCanvas(sim) {
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = sim.canvas.clientWidth;
+    const cssH = sim.canvas.clientHeight;
+    sim.w = cssW;
+    sim.h = cssH;
+    sim.canvas.width = Math.round(cssW * dpr);
+    sim.canvas.height = Math.round(cssH * dpr);
+    sim.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function drawScene(sim) {
+    const ctx = sim.ctx;
+    const W = sim.w;
+    const H = sim.h;
+    const world = sim.world;
+    const groundY = H - 36;                     // surface line (px)
+    const ppm = (groundY - 52) / VIEW_TOP_M;    // pixels per metre (same scale in all columns)
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Sky
+    const sky = ctx.createLinearGradient(0, 0, 0, groundY);
+    sky.addColorStop(0, world.sky);
+    sky.addColorStop(1, world.skyLow);
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, groundY);
+
+    // Surface
+    ctx.fillStyle = world.ground;
+    ctx.fillRect(0, groundY, W, H - groundY);
+    ctx.fillStyle = world.ground2;
+    ctx.fillRect(0, groundY, W, 4);
+
+    // Drop-height guide (dashed)
+    const guideY = groundY - DROP_HEIGHT_M * ppm;
+    ctx.save();
+    ctx.setLineDash([6, 6]);
+    ctx.strokeStyle = 'rgba(167, 173, 181, 0.6)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, guideY);
+    ctx.lineTo(W, guideY);
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = '#A7ADB5';
+    ctx.font = '500 14px ' + FONT;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('20 m', W - 8, guideY - 4);
+
+    // Planet label
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '700 16px ' + FONT;
+    ctx.fillText(world.name.toUpperCase(), 10, 10);
+    ctx.fillStyle = '#A7ADB5';
+    ctx.font = '500 14px ' + FONT;
+    ctx.fillText('g = ' + world.g.toFixed(2) + ' m/s²', 10, 30);
+
+    // Object
+    const b = sim.body;
+    if (b) {
+      const r = 10 + 2 * Math.cbrt(b.mass);   // bigger mass = bigger drawing (px)
+      const cx = W / 2;
+      const cy = groundY - b.y * ppm - r;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = b.resting ? '#3DDC84' : '#00B7FF';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.stroke();
+    }
+  }
+
+  function updateFields(sim) {
+    const b = sim.body;
+    const f = sim.fields;
+    if (!b) {
+      f.status.textContent = 'Ready';
+      f.status.className = 'status-badge ready';
+      f.height.textContent = '-';
+      f.speed.textContent = '-';
+      f.ke.textContent = '-';
+      f.impact.textContent = '-';
+      f.bounces.textContent = '0';
+      return;
+    }
+    const speed = Math.abs(b.vy);
+    f.height.textContent = b.y.toFixed(2) + ' m';
+    f.speed.textContent = speed.toFixed(2) + ' m/s';
+    f.ke.textContent = formatJ(kineticEnergy(b.mass, speed));
+    f.impact.textContent = b.bounces ? formatJ(b.impactKE) : '-';
+    f.bounces.textContent = String(b.bounces);
+
+    if (b.resting) {
+      f.status.textContent = 'At rest';
+      f.status.className = 'status-badge rest';
+    } else if (b.bounces > 0) {
+      f.status.textContent = 'Bouncing';
+      f.status.className = 'status-badge bouncing';
+    } else {
+      f.status.textContent = 'Falling';
+      f.status.className = 'status-badge bouncing';
+    }
+  }
+
+  function updateProgress() {
+    progressEl.textContent = tried.size + ' / ' + TOTAL_COMBOS;
+  }
+
+  // ---- Completion (RULE 4: postMessage signal) ----------------------------
+  function checkCompletion() {
+    if (completionSent || tried.size < TOTAL_COMBOS) return;
+    completionSent = true;
+    messageEl.textContent = 'Mission complete!';
+    window.parent.postMessage({ type: 'MISSION_COMPLETE', missionId: 1 }, '*');
+  }
+
+  // ---- Loop ---------------------------------------------------------------
+  let lastTime = performance.now();
+  let accumulator = 0;
+
+  function frame(now) {
+    const elapsed = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+    accumulator += elapsed;
+
+    while (accumulator >= SUB_DT) {
+      sims.forEach(function (sim) { stepBody(sim, SUB_DT); });
+      accumulator -= SUB_DT;
+    }
+
+    sims.forEach(function (sim) {
+      drawScene(sim);
+      updateFields(sim);
+    });
+
+    requestAnimationFrame(frame);
+  }
+
+  // ---- Events -------------------------------------------------------------
+  function resizeAll() {
+    sims.forEach(resizeCanvas);
+  }
+
+  selectEl.addEventListener('change', function () {
+    selected = currentObject();
+    sims.forEach(function (sim) { sim.body = null; });
+  });
+
+  dropBtn.addEventListener('click', dropAll);
+
+  resetBtn.addEventListener('click', function () {
+    sims.forEach(function (sim) { sim.body = null; });
+  });
+
+  window.addEventListener('resize', resizeAll);
+
+  // ---- Start --------------------------------------------------------------
+  resizeAll();
+  updateProgress();
+  sims.forEach(updateFields);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

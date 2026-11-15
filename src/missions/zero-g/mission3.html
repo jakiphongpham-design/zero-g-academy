@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission 03 - Black Hole Lab</title>
+<style>
+  /* Design tokens: values copied from the dashboard look (deep space blue, neon cyan and orange)
+     so this mission matches the platform while staying fully self-contained. */
+  :root {
+    --zg-bg:            #01030B;
+    --zg-win:           rgba(5, 11, 31, 0.78);
+    --zg-surface-2:     rgba(255, 255, 255, 0.04);
+    --zg-border:        rgba(120, 170, 255, 0.2);
+    --zg-border-strong: rgba(120, 170, 255, 0.45);
+    --zg-text:          #EAF2FF;
+    --zg-text-muted:    #9FB3D1;
+    --zg-text-dim:      #66789B;
+    --zg-accent-blue:   #00E5FF;
+    --zg-accent-orange: #FF7A1A;
+    --zg-accent-violet: #B26BFF;
+    --zg-success:       #5CFFB0;
+    --zg-danger:        #FF5C7A;
+    --zg-font: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    --zg-font-mono: "JetBrains Mono", Consolas, "Courier New", monospace;
+    --zg-fs-label: 0.75rem;
+    --zg-fs-body:  1.125rem;
+    --zg-radius:   14px;
+    --zg-tap:      48px;
+    --zg-dur:      180ms;
+    color-scheme: dark;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root { --zg-dur: 0ms; }
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: var(--zg-bg);
+    color: var(--zg-text);
+    font-family: var(--zg-font);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--zg-accent-blue);
+    outline-offset: 3px;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  /* ---- Fullscreen space view ---- */
+  #space {
+    position: fixed;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  #space:focus-visible { outline: none; }
+
+  /* ---- Logo + mission title, floating top-centre ---- */
+  .brandbar {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 6px 16px 6px 8px;
+    background: rgba(1, 3, 11, 0.7);
+    border: 1px solid var(--zg-border);
+    border-radius: 999px;
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  .brand-mark {
+    display: grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border: 1px solid var(--zg-accent-blue);
+    border-radius: 9px;
+    color: var(--zg-accent-blue);
+    font-size: 0.8rem;
+    font-weight: 800;
+    box-shadow: 0 0 14px rgba(0, 229, 255, 0.45);
+  }
+
+  .brand-name { font-weight: 800; letter-spacing: 0.04em; }
+
+  .brand-sep { width: 1px; height: 22px; background: var(--zg-border-strong); }
+
+  .brand-mission {
+    font-family: var(--zg-font-mono);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--zg-accent-violet);
+  }
+
+  /* ---- Floating tech windows ---- */
+  .win {
+    position: fixed;
+    z-index: 10;
+    top: 76px;
+    width: 312px;
+    max-height: calc(100% - 92px);
+    display: flex;
+    flex-direction: column;
+    background:
+      repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 3px),
+      var(--zg-win);
+    border: 1px solid rgba(0, 229, 255, 0.45);
+    border-radius: var(--zg-radius);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 40px -12px rgba(0, 229, 255, 0.7), inset 0 0 30px -18px rgba(0, 229, 255, 0.6);
+  }
+
+  #winControl { left: 16px; }
+  #winInfo {
+    right: 16px;
+    width: 300px;
+    border-color: rgba(178, 107, 255, 0.55);
+    box-shadow: 0 0 40px -12px rgba(178, 107, 255, 0.75), inset 0 0 30px -18px rgba(178, 107, 255, 0.6);
+  }
+
+  /* Glowing corner brackets */
+  .win::before,
+  .win::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    pointer-events: none;
+    border-color: var(--win-accent, var(--zg-accent-blue));
+    border-style: solid;
+  }
+  .win::before { top: -3px; left: -3px; border-width: 2px 0 0 2px; border-top-left-radius: 6px; }
+  .win::after { bottom: -3px; right: -3px; border-width: 0 2px 2px 0; border-bottom-right-radius: 6px; }
+  #winInfo { --win-accent: var(--zg-accent-violet); }
+
+  .win-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 8px 8px 14px;
+    border-bottom: 1px solid var(--zg-border);
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+
+  .win-bar:active { cursor: grabbing; }
+
+  .win-dot {
+    flex: none;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--win-accent, var(--zg-accent-blue));
+    box-shadow: 0 0 8px var(--win-accent, var(--zg-accent-blue));
+    animation: dotPulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes dotPulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.35; }
+  }
+
+  .win-title {
+    flex: 1;
+    font-family: var(--zg-font-mono);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--win-accent, var(--zg-accent-blue));
+  }
+
+  .win-btn {
+    flex: none;
+    width: 40px;
+    min-height: 40px;
+    padding: 0;
+    font-family: var(--zg-font-mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--zg-text-muted);
+    background: transparent;
+    border: 1px solid var(--zg-border);
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  .win-btn:hover { color: var(--zg-text); border-color: var(--win-accent, var(--zg-accent-blue)); }
+
+  .win-body {
+    display: grid;
+    gap: 14px;
+    padding: 14px;
+    overflow-y: auto;
+  }
+
+  .win.min .win-body { display: none; }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--zg-font-mono);
+    font-size: var(--zg-fs-label);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--zg-accent-blue);
+  }
+
+  .step b {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    color: #00121C;
+    background: var(--zg-accent-blue);
+    border-radius: 5px;
+  }
+
+  .step::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--zg-border-strong), transparent);
+  }
+
+  .picked {
+    margin: 4px 0 0;
+    font-size: var(--zg-fs-body);
+    font-weight: 800;
+  }
+
+  .picked.violet { color: var(--zg-accent-violet); }
+
+  /* Black hole tiles: small to big */
+  .hole-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  button.hole {
+    display: grid;
+    place-items: center;
+    min-height: 52px;
+    padding: 0;
+    background: var(--zg-surface-2);
+    border: 1px solid rgba(178, 107, 255, 0.4);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform var(--zg-dur) ease, box-shadow var(--zg-dur) ease;
+  }
+
+  button.hole:hover { transform: translateY(-2px); box-shadow: 0 0 12px rgba(178, 107, 255, 0.6); }
+
+  button.hole[aria-pressed="true"] {
+    border-color: var(--zg-accent-violet);
+    background: rgba(178, 107, 255, 0.18);
+    box-shadow: 0 0 16px rgba(178, 107, 255, 0.8);
+  }
+
+  .hole-dot {
+    border-radius: 50%;
+    background: #000;
+    box-shadow: 0 0 0 2px #FFB347, 0 0 8px 2px rgba(255, 122, 26, 0.8);
+    animation: holePulse 2.4s ease-in-out infinite;
+  }
+
+  @keyframes holePulse {
+    0%, 100% { box-shadow: 0 0 0 2px #FFB347, 0 0 6px 1px rgba(255, 122, 26, 0.6); }
+    50%      { box-shadow: 0 0 0 2px #FFD27A, 0 0 14px 4px rgba(255, 122, 26, 0.95); }
+  }
+
+  .size-hint {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+    font-family: var(--zg-font-mono);
+    font-size: var(--zg-fs-label);
+    color: var(--zg-text-dim);
+  }
+
+  /* Object tiles */
+  .obj-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  button.obj {
+    display: grid;
+    place-items: center;
+    min-height: 52px;
+    padding: 4px 0;
+    background: var(--zg-surface-2);
+    border: 1px solid var(--zg-border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform var(--zg-dur) ease, box-shadow var(--zg-dur) ease, border-color var(--zg-dur) ease;
+  }
+
+  button.obj:hover { transform: translateY(-2px); border-color: var(--zg-accent-blue); }
+
+  button.obj[aria-pressed="true"] {
+    border-color: var(--zg-accent-blue);
+    background: rgba(0, 229, 255, 0.1);
+    box-shadow: 0 0 14px rgba(0, 229, 255, 0.55);
+  }
+
+  button.obj canvas { width: 40px; height: 40px; }
+
+  /* Speed slider */
+  .speed-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 6px;
+    font-size: var(--zg-fs-body);
+  }
+
+  .speed-row output {
+    font-family: var(--zg-font-mono);
+    font-weight: 700;
+    color: var(--zg-accent-orange);
+  }
+
+  input[type="range"] {
+    width: 100%;
+    min-height: 32px;
+    accent-color: var(--zg-accent-blue);
+  }
+
+  .speed-ends {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--zg-font-mono);
+    font-size: var(--zg-fs-label);
+    color: var(--zg-text-dim);
+  }
+
+  /* Switches */
+  .switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: var(--zg-tap);
+    font-size: var(--zg-fs-body);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .switch input {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    flex: none;
+    width: 52px;
+    height: 28px;
+    margin: 0;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--zg-border-strong);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background var(--zg-dur) ease, border-color var(--zg-dur) ease;
+  }
+
+  .switch input::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: var(--zg-text-muted);
+    border-radius: 50%;
+    transition: transform var(--zg-dur) ease, background var(--zg-dur) ease;
+  }
+
+  .switch input:checked {
+    background: rgba(0, 229, 255, 0.25);
+    border-color: var(--zg-accent-blue);
+  }
+
+  .switch input:checked::after {
+    transform: translateX(24px);
+    background: var(--zg-accent-blue);
+    box-shadow: 0 0 10px var(--zg-accent-blue);
+  }
+
+  /* Buttons */
+  .actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+
+  .btn {
+    min-height: var(--zg-tap);
+    padding: 0 1.1rem;
+    font-family: inherit;
+    font-size: var(--zg-fs-body);
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: box-shadow var(--zg-dur) ease;
+  }
+
+  .btn-launch {
+    color: #00121C;
+    background: linear-gradient(90deg, var(--zg-accent-blue), #7CF3FF);
+    border: none;
+    box-shadow: 0 0 18px rgba(0, 229, 255, 0.6);
+  }
+
+  .btn-launch:hover { box-shadow: 0 0 28px rgba(0, 229, 255, 0.9); }
+  .btn-launch:disabled { opacity: 0.4; box-shadow: none; cursor: not-allowed; }
+
+  .btn-clear {
+    color: var(--zg-accent-orange);
+    background: transparent;
+    border: 1px solid var(--zg-accent-orange);
+  }
+
+  .btn-clear:hover { box-shadow: 0 0 14px rgba(255, 122, 26, 0.5); }
+
+  /* Info window */
+  .info-name {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--zg-text);
+    text-shadow: 0 0 18px rgba(178, 107, 255, 0.6);
+  }
+
+  .info-type {
+    margin: 2px 0 0;
+    font-family: var(--zg-font-mono);
+    font-size: var(--zg-fs-label);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--zg-accent-violet);
+  }
+
+  .readouts { display: grid; gap: 6px; margin: 0; }
+
+  .readout {
+    display: grid;
+    gap: 2px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--zg-border);
+    border-left: 3px solid var(--zg-accent-violet);
+    border-radius: 8px;
+  }
+
+  .readout dt {
+    font-family: var(--zg-font-mono);
+    font-size: var(--zg-fs-label);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--zg-text-muted);
+  }
+
+  .readout dd { margin: 0; font-size: var(--zg-fs-body); font-weight: 700; }
+
+  .facts {
+    margin: 0;
+    padding-left: 20px;
+    font-size: var(--zg-fs-body);
+    line-height: 1.45;
+  }
+
+  .facts li + li { margin-top: 6px; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .stat {
+    padding: 8px 10px;
+    background: rgba(0, 229, 255, 0.05);
+    border: 1px solid var(--zg-border);
+    border-radius: 8px;
+  }
+
+  .stat span {
+    display: block;
+    font-family: var(--zg-font-mono);
+    font-size: var(--zg-fs-label);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--zg-text-muted);
+  }
+
+  .stat strong {
+    font-family: var(--zg-font-mono);
+    font-size: 1.4rem;
+    color: var(--zg-accent-blue);
+  }
+
+  .note {
+    margin: 0;
+    font-size: var(--zg-fs-body);
+    color: var(--zg-text-muted);
+  }
+
+  /* ---- Quiz pop-up ---- */
+  .quiz {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(1, 3, 11, 0.6);
+    backdrop-filter: blur(3px);
+  }
+
+  .quiz.show { display: flex; }
+
+  .quiz .win {
+    position: relative;
+    top: auto;
+    width: min(460px, 100%);
+    max-height: 100%;
+  }
+
+  .quiz .win-bar { cursor: default; }
+
+  .quiz h2 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 800;
+    line-height: 1.3;
+  }
+
+  button.choice {
+    width: 100%;
+    min-height: 52px;
+    padding: 0.7rem 1rem;
+    font-family: inherit;
+    font-size: var(--zg-fs-body);
+    font-weight: 600;
+    text-align: left;
+    color: var(--zg-text);
+    background: var(--zg-surface-2);
+    border: 1px solid var(--zg-border-strong);
+    border-radius: 12px;
+    cursor: pointer;
+  }
+
+  button.choice:hover,
+  button.choice:focus-visible {
+    border-color: var(--zg-accent-blue);
+    background: rgba(0, 229, 255, 0.08);
+    box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hole-dot, .win-dot { animation: none; }
+    button.obj:hover, button.hole:hover { transform: none; }
+  }
+
+  /* Small screens: windows dock to the top and bottom edges */
+  @media (max-width: 760px) {
+    .brandbar { display: none; }
+    .win {
+      left: 8px !important;
+      right: 8px !important;
+      width: auto !important;
+      max-height: 46%;
+    }
+    #winControl { top: auto !important; bottom: 8px; }
+    #winInfo { top: 8px !important; max-height: 38%; }
+    .win-bar { cursor: default; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="space" tabindex="0" aria-label="Fullscreen space around a black hole. Click anywhere to place the chosen object, then press Launch."></canvas>
+
+<div class="brandbar">
+  <span class="brand-mark" aria-hidden="true">ZG</span>
+  <span class="brand-name">Zero-G Academy</span>
+  <span class="brand-sep" aria-hidden="true"></span>
+  <span class="brand-mission">Mission 03 &middot; Black Hole Lab</span>
+</div>
+
+<!-- Window 1: everything you need to throw an object -->
+<section class="win" id="winControl" aria-labelledby="winControlTitle">
+  <div class="win-bar">
+    <span class="win-dot" aria-hidden="true"></span>
+    <span class="win-title" id="winControlTitle">Mission Control</span>
+    <button type="button" class="win-btn" id="fullBtn" aria-label="Full screen" title="Full screen" hidden>&#x26F6;</button>
+    <button type="button" class="win-btn win-min" aria-expanded="true" aria-label="Hide window" title="Hide window">&#8211;</button>
+  </div>
+  <div class="win-body">
+    <div>
+      <div class="step"><b>1</b>Black hole</div>
+      <div class="hole-row" id="holeButtons" role="group" aria-label="Black holes, small to big"></div>
+      <div class="size-hint" aria-hidden="true"><span>small</span><span>big</span></div>
+      <p class="picked violet" id="holePicked">V404 Cygni</p>
+    </div>
+
+    <div>
+      <div class="step"><b>2</b>Object</div>
+      <div class="obj-grid" id="objButtons" role="group" aria-label="Objects to throw"></div>
+      <p class="picked" id="objPicked">Earth</p>
+    </div>
+
+    <div>
+      <div class="step"><b>3</b>Speed</div>
+      <label class="speed-row" for="speed"><span>Sideways push</span><output id="speedOut" for="speed">80%</output></label>
+      <input type="range" id="speed" min="0" max="150" step="5" value="80">
+      <div class="speed-ends" aria-hidden="true"><span>drop</span><span>orbit</span><span>fast</span></div>
+    </div>
+
+    <div>
+      <label class="switch"><span>Show path</span><input type="checkbox" id="previewToggle" checked></label>
+      <label class="switch"><span>Quiz: guess first</span><input type="checkbox" id="quizToggle"></label>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-launch" id="launchBtn" disabled>Launch</button>
+      <button type="button" class="btn btn-clear" id="clearBtn">Clear</button>
+    </div>
+  </div>
+</section>
+
+<!-- Window 2: facts about the chosen black hole + your results -->
+<section class="win" id="winInfo" aria-labelledby="winInfoTitle">
+  <div class="win-bar">
+    <span class="win-dot" aria-hidden="true"></span>
+    <span class="win-title" id="winInfoTitle">Black Hole Data</span>
+    <button type="button" class="win-btn win-min" aria-expanded="true" aria-label="Hide window" title="Hide window">&#8211;</button>
+  </div>
+  <div class="win-body" aria-live="polite">
+    <div>
+      <p class="info-type" id="holeKicker">Black hole 1 of 5</p>
+      <h2 class="info-name" id="holeName">V404 Cygni</h2>
+      <p class="info-type" id="holeType"></p>
+    </div>
+    <dl class="readouts">
+      <div class="readout"><dt>Mass</dt><dd id="holeMass"></dd></div>
+      <div class="readout"><dt>Distance</dt><dd id="holeDist"></dd></div>
+      <div class="readout"><dt>Edge size (radius)</dt><dd id="holeHorizon"></dd></div>
+    </dl>
+    <ul class="facts" id="holeFacts"></ul>
+    <div class="stats">
+      <div class="stat"><span>Tested</span><strong id="hudTested">0 / 5</strong></div>
+      <div class="stat"><span>Thrown</span><strong id="hudThrown">0</strong></div>
+      <div class="stat"><span>Swallowed</span><strong id="hudSwallowed">0</strong></div>
+      <div class="stat"><span>Quiz</span><strong id="hudQuiz">0 / 0</strong></div>
+    </div>
+    <p class="note" id="objNote"></p>
+    <p class="note">Not to scale. Data from NASA. Test all 5 black holes to finish!</p>
+  </div>
+</section>
+
+<!-- Quiz pop-up -->
+<div class="quiz" id="quiz" role="dialog" aria-modal="true" aria-labelledby="quizQuestion">
+  <section class="win">
+    <div class="win-bar">
+      <span class="win-dot" aria-hidden="true"></span>
+      <span class="win-title">Quiz &middot; Make a guess</span>
+    </div>
+    <div class="win-body">
+      <h2 id="quizQuestion">What will happen to the object?</h2>
+      <button type="button" class="choice" data-guess="capture">It falls into the black hole</button>
+      <button type="button" class="choice" data-guess="orbit">It orbits around the black hole</button>
+      <button type="button" class="choice" data-guess="escape">It flies away into space</button>
+    </div>
+  </section>
+</div>
+
+<p class="sr-only" id="message" aria-live="polite">Click anywhere in space to place your object.</p>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---- Black holes (NASA data), ordered small to big -------------------------
+  // rs: event horizon radius in simulation units (not to scale; grows with size)
+  // tidal: how strongly objects are stretched near the edge (small holes stretch more)
+  const HOLES = [
+    {
+      name: 'V404 Cygni', type: 'Stellar black hole',
+      mass: 'About 9 times the Sun', dist: 'About 7,800 light-years', horizon: 'About 27 km',
+      rs: 20, tidal: 7, dot: 10,
+      facts: ['In 2015 it woke up and shot out bright X-ray flashes.', 'NASA\'s Swift telescope watched the flashes happen.']
+    },
+    {
+      name: 'Cygnus X-1', type: 'Stellar black hole',
+      mass: 'About 21 times the Sun', dist: 'About 7,200 light-years', horizon: 'About 62 km',
+      rs: 28, tidal: 5, dot: 13,
+      facts: ['It was one of the first black holes ever found.', 'It pulls gas away from a giant blue star next to it.']
+    },
+    {
+      name: 'Sagittarius A*', type: 'Supermassive black hole',
+      mass: 'About 4 million times the Sun', dist: 'About 27,000 light-years', horizon: 'About 12 million km',
+      rs: 42, tidal: 0.4, dot: 17,
+      facts: ['It sits at the center of our Milky Way galaxy.', 'Its first picture was shared in 2022.']
+    },
+    {
+      name: 'M87*', type: 'Supermassive black hole',
+      mass: 'About 6.5 billion times the Sun', dist: 'About 55 million light-years', horizon: 'About 19 billion km',
+      rs: 60, tidal: 0.1, dot: 21,
+      facts: ['It was the first black hole ever photographed, in 2019.', 'Its edge is wider than the orbits of all our planets.']
+    },
+    {
+      name: 'TON 618', type: 'Ultramassive black hole',
+      mass: 'About 66 billion times the Sun', dist: 'Its light traveled about 10 billion years to reach us', horizon: 'About 195 billion km',
+      rs: 82, tidal: 0.03, dot: 26,
+      facts: ['It is one of the biggest black holes ever found.', 'Gas falling into it glows brighter than whole galaxies.']
+    }
+  ];
+
+  // ---- Objects to throw (masses from NASA fact sheets) -----------------------
+  const OBJECTS = [
+    { key: 'mercury', name: 'Mercury', mass: '3.3 × 10²³ kg', size: 5,  kind: 'planet', c1: '#C9C9C9', c2: '#6E6E6E' },
+    { key: 'venus',   name: 'Venus',   mass: '4.9 × 10²⁴ kg', size: 7,  kind: 'planet', c1: '#F3D99B', c2: '#B8873E' },
+    { key: 'earth',   name: 'Earth',   mass: '6.0 × 10²⁴ kg', size: 7,  kind: 'earth',  c1: '#4FA3FF', c2: '#1B4FA0' },
+    { key: 'mars',    name: 'Mars',    mass: '6.4 × 10²³ kg', size: 6,  kind: 'planet', c1: '#F0784A', c2: '#9A2E14' },
+    { key: 'jupiter', name: 'Jupiter', mass: '1.9 × 10²⁷ kg', size: 12, kind: 'banded', c1: '#E8C9A0', c2: '#A9744B' },
+    { key: 'saturn',  name: 'Saturn',  mass: '5.7 × 10²⁶ kg', size: 10, kind: 'saturn', c1: '#F1DE9E', c2: '#B8984F' },
+    { key: 'uranus',  name: 'Uranus',  mass: '8.7 × 10²⁵ kg', size: 9,  kind: 'planet', c1: '#B5F1F4', c2: '#4FB5C0' },
+    { key: 'neptune', name: 'Neptune', mass: '1.0 × 10²⁶ kg', size: 9,  kind: 'planet', c1: '#6E8CFF', c2: '#2335A8' },
+    { key: 'asteroid', name: 'Asteroid',      mass: '7.3 × 10¹⁰ kg (Bennu)', size: 6,  kind: 'asteroid' },
+    { key: 'comet',    name: 'Comet',         mass: '2.2 × 10¹⁴ kg (Halley)', size: 6, kind: 'comet' },
+    { key: 'satellite', name: 'Satellite',    mass: '11,000 kg (Hubble)', size: 8,  kind: 'satellite' },
+    { key: 'station',  name: 'Space station', mass: '420,000 kg (ISS)', size: 11, kind: 'station' }
+  ];
+
+  // ---- Physics settings -------------------------------------------------------
+  // Paczynski-Wiita gravity: a = GM / (r - rs)^2. It behaves like a real black hole:
+  // close orbits wobble, and anything that gets too close plunges in.
+  const C_SIM = 1050;              // "speed of light" in simulation units per second
+  const SUB_DT = 1 / 600;          // fixed physics step (s)
+  const VIEW_HALF = 470;           // simulation units shown from the centre to the nearest edge
+  const ESCAPE_R = 2600;           // farther than this counts as escaped
+  const MIN_PLACE = 1.35;          // objects must be placed this many horizon radii away
+  const MAX_LIVE = 8;              // objects flying at once
+  const OUTCOME_TEXT = {
+    capture: 'It crossed the event horizon. Nothing comes back out, not even light.',
+    orbit: 'It moves sideways fast enough to keep missing the black hole. That is an orbit!',
+    escape: 'It moved fast enough to escape the black hole\'s pull.'
+  };
+  const OUTCOME_SHORT = { capture: 'fell in', orbit: 'went into orbit', escape: 'flew away' };
+
+  // ---- DOM --------------------------------------------------------------------
+  const canvas = document.getElementById('space');
+  const ctx = canvas.getContext('2d');
+  const holeButtonsEl = document.getElementById('holeButtons');
+  const objButtonsEl = document.getElementById('objButtons');
+  const speedInput = document.getElementById('speed');
+  const speedOut = document.getElementById('speedOut');
+  const previewToggle = document.getElementById('previewToggle');
+  const quizToggle = document.getElementById('quizToggle');
+  const launchBtn = document.getElementById('launchBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const messageEl = document.getElementById('message');
+  const quizEl = document.getElementById('quiz');
+  const quizQuestion = document.getElementById('quizQuestion');
+  const quizChoices = Array.prototype.slice.call(quizEl.querySelectorAll('button.choice'));
+
+  // ---- State ------------------------------------------------------------------
+  let holeIdx = 0;
+  let objIdx = 2;                  // Earth
+  let pending = null;              // object placed but not launched yet: {x, y, vx, vy, pred}
+  let live = [];                   // flying objects
+  let hover = null;                // mouse position in simulation units
+  let quizOpen = false;
+  const tested = new Set();
+  let thrown = 0, swallowed = 0, quizRight = 0, quizTotal = 0;
+  let completionSent = false;
+  let toast = null;                // short message drawn on the canvas
+
+  function hole() { return HOLES[holeIdx]; }
+  function GM(h) { return 0.5 * C_SIM * C_SIM * h.rs; }
+
+  // ---- Physics ----------------------------------------------------------------
+  function accel(x, y, h) {
+    const r = Math.sqrt(x * x + y * y);
+    const k = -GM(h) / ((r - h.rs) * (r - h.rs) * r);
+    return [k * x, k * y];
+  }
+
+  function step(b, h) {
+    const a = accel(b.x, b.y, h);
+    b.vx += a[0] * SUB_DT;
+    b.vy += a[1] * SUB_DT;
+    b.x += b.vx * SUB_DT;
+    b.y += b.vy * SUB_DT;
+  }
+
+  // Sideways (counter-clockwise on screen) launch velocity as a % of circular orbit speed
+  function launchVelocity(x, y, h, pct) {
+    const r = Math.sqrt(x * x + y * y);
+    const vc = Math.sqrt(GM(h) * r) / (r - h.rs);
+    const v = vc * pct / 100;
+    return [v * y / r, -v * x / r];
+  }
+
+  // Run the same physics ahead of time to find the outcome and the path
+  function predict(x, y, vx, vy, h) {
+    const b = { x: x, y: y, vx: vx, vy: vy };
+    const pts = [[x, y]];
+    let ang = Math.atan2(y, x), swept = 0;
+    const maxSteps = 120 / SUB_DT;
+    for (let n = 1; n <= maxSteps; n++) {
+      step(b, h);
+      const r = Math.sqrt(b.x * b.x + b.y * b.y);
+      if (n % 4 === 0 && pts.length < 8000) pts.push([b.x, b.y]);
+      if (r <= h.rs) { pts.push([b.x, b.y]); return { outcome: 'capture', pts: pts }; }
+      if (r > ESCAPE_R) return { outcome: 'escape', pts: pts };
+      const a2 = Math.atan2(b.y, b.x);
+      let d = a2 - ang;
+      if (d > Math.PI) d -= 2 * Math.PI;
+      if (d < -Math.PI) d += 2 * Math.PI;
+      swept += d;
+      ang = a2;
+      if (Math.abs(swept) >= 2 * Math.PI + 0.3) return { outcome: 'orbit', pts: pts };
+    }
+    return { outcome: 'orbit', pts: pts };
+  }
+
+  // ---- Placing and launching ----------------------------------------------------
+  function placeAt(x, y) {
+    if (quizOpen) return;
+    const h = hole();
+    const r = Math.sqrt(x * x + y * y);
+    if (r < h.rs * MIN_PLACE) {
+      setMessage('Too close! Place it farther from the black hole.', true);
+      return;
+    }
+    pending = { x: x, y: y };
+    updatePending();
+    launchBtn.disabled = false;
+    setMessage(quizToggle.checked
+      ? 'Ready! Press Launch, then guess what will happen.'
+      : 'Ready! Press Launch to let it go.', false);
+  }
+
+  function updatePending() {
+    if (!pending) return;
+    const v = launchVelocity(pending.x, pending.y, hole(), Number(speedInput.value));
+    pending.vx = v[0];
+    pending.vy = v[1];
+    pending.pred = predict(pending.x, pending.y, v[0], v[1], hole());
+  }
+
+  function launch() {
+    if (!pending || quizOpen) return;
+    if (quizToggle.checked) {
+      openQuiz();
+      return;
+    }
+    release(null);
+  }
+
+  function release(guess) {
+    const p = pending;
+    pending = null;
+    launchBtn.disabled = true;
+    if (live.length >= MAX_LIVE) addGhost(live.shift());
+    live.push({
+      obj: OBJECTS[objIdx], x: p.x, y: p.y, vx: p.vx, vy: p.vy,
+      outcome: p.pred.outcome, guess: guess, trail: [],
+      ang: Math.atan2(p.y, p.x), swept: 0, reported: false,
+      falling: 0, spin: Math.random() * 6
+    });
+    thrown++;
+    tested.add(holeIdx);
+    setMessage('Launched ' + theName(OBJECTS[objIdx], true) + '! Watch what happens.', false);
+    updateHud();
+    if (tested.size === HOLES.length && !completionSent) {
+      completionSent = true;
+      window.parent.postMessage({ type: 'MISSION_COMPLETE', missionId: 3 }, '*');
+      showToast('You tested all five black holes! Mission complete.', '#5CFFB0');
+    }
+  }
+
+  // Tell the player what happened (and score the quiz guess)
+  // Planets use their name ("Saturn"); other objects get "the" ("the comet")
+  function theName(o, midSentence) {
+    const isPlanet = ['planet', 'earth', 'banded', 'saturn'].indexOf(o.kind) !== -1;
+    if (isPlanet) return o.name;
+    return (midSentence ? 'the ' : 'The ') + o.name.toLowerCase();
+  }
+
+  function report(b) {
+    if (b.reported) return;
+    b.reported = true;
+    let text = theName(b.obj) + ' ' + OUTCOME_SHORT[b.outcome] + '. ' + OUTCOME_TEXT[b.outcome];
+    if (b.outcome === 'capture') {
+      text += hole().tidal >= 1
+        ? ' It was stretched like spaghetti first!'
+        : ' Big black holes stretch things less at the edge.';
+    }
+    let color = '#EAF2FF';
+    if (b.guess) {
+      quizTotal++;
+      if (b.guess === b.outcome) {
+        quizRight++;
+        text = 'Correct! ' + text;
+        color = '#5CFFB0';
+      } else {
+        text = 'Not quite. ' + text;
+        color = '#FF7A1A';
+      }
+    }
+    setMessage(text, b.guess && b.guess !== b.outcome);
+    showToast(b.obj.name + ' ' + OUTCOME_SHORT[b.outcome] + '!', color);
+    updateHud();
+  }
+
+  // ---- Quiz ------------------------------------------------------------------------
+  function openQuiz() {
+    quizOpen = true;
+    quizQuestion.textContent = 'What will happen to ' + theName(OBJECTS[objIdx], true) + '?';
+    quizEl.classList.add('show');
+    quizChoices[0].focus();
+  }
+
+  quizChoices.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      quizOpen = false;
+      quizEl.classList.remove('show');
+      last = performance.now();
+      release(btn.getAttribute('data-guess'));
+      canvas.focus();
+    });
+  });
+
+  // ---- Pickers ----------------------------------------------------------------------
+  const ICON_PX = 40;
+  const iconCtxs = [];
+
+  // Sidebar icons are animated too; the chosen one bobs gently
+  function drawIcons(t) {
+    for (let i = 0; i < iconCtxs.length; i++) {
+      const c = iconCtxs[i];
+      const o = OBJECTS[i];
+      c.clearRect(0, 0, ICON_PX, ICON_PX);
+      const bob = i === objIdx ? Math.sin(t * 3) * 2 : 0;
+      const r = Math.min(11, 5.5 + o.size * 0.55);
+      drawObject(c, o, ICON_PX / 2 - (o.kind === 'comet' ? 6 : 0), ICON_PX / 2 + bob + (o.kind === 'comet' ? 5 : 0),
+        r, -0.7, 1, 1, t + i * 0.7);
+    }
+  }
+
+  function buildPickers() {
+    HOLES.forEach(function (h, i) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'hole';
+      btn.title = h.name;
+      btn.setAttribute('aria-label', (i + 1) + '. ' + h.name);
+      const dot = document.createElement('span');
+      dot.className = 'hole-dot';
+      dot.style.width = h.dot + 'px';
+      dot.style.height = h.dot + 'px';
+      btn.appendChild(dot);
+      btn.addEventListener('click', function () { selectHole(i); });
+      holeButtonsEl.appendChild(btn);
+    });
+
+    OBJECTS.forEach(function (o, i) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'obj';
+      const icon = document.createElement('canvas');
+      const dpr = window.devicePixelRatio || 1;
+      icon.width = ICON_PX * dpr;
+      icon.height = ICON_PX * dpr;
+      const ictx = icon.getContext('2d');
+      ictx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      iconCtxs.push(ictx);
+      btn.title = o.name;
+      btn.setAttribute('aria-label', o.name);
+      btn.appendChild(icon);
+      btn.addEventListener('click', function () { selectObject(i); });
+      objButtonsEl.appendChild(btn);
+    });
+  }
+
+  function selectHole(i) {
+    holeIdx = i;
+    live = [];
+    ghosts = [];
+    pending = null;
+    launchBtn.disabled = true;
+    Array.prototype.forEach.call(holeButtonsEl.children, function (b, k) {
+      b.setAttribute('aria-pressed', k === i ? 'true' : 'false');
+    });
+    const h = HOLES[i];
+    document.getElementById('holeKicker').textContent = 'Black hole ' + (i + 1) + ' of 5';
+    document.getElementById('holePicked').textContent = h.name;
+    document.getElementById('holeName').textContent = h.name;
+    document.getElementById('holeType').textContent = h.type;
+    document.getElementById('holeMass').textContent = h.mass;
+    document.getElementById('holeDist').textContent = h.dist;
+    document.getElementById('holeHorizon').textContent = h.horizon;
+    const facts = document.getElementById('holeFacts');
+    facts.textContent = '';
+    h.facts.forEach(function (f) {
+      const li = document.createElement('li');
+      li.textContent = f;
+      facts.appendChild(li);
+    });
+    setMessage('Click anywhere in space to place your object.', false);
+  }
+
+  function selectObject(i) {
+    objIdx = i;
+    Array.prototype.forEach.call(objButtonsEl.children, function (b, k) {
+      b.setAttribute('aria-pressed', k === i ? 'true' : 'false');
+    });
+    const o = OBJECTS[i];
+    document.getElementById('objPicked').textContent = o.name;
+    document.getElementById('objNote').textContent =
+      o.name + ' mass: ' + o.mass + '. Heavy or light, every object follows the same path!';
+  }
+
+  // ---- Messages ---------------------------------------------------------------------
+  // Status line drawn at the bottom of the space view (and read out by screen readers)
+  let status = { text: 'Click anywhere in space to place your object.', bad: false };
+  function setMessage(text, bad) {
+    messageEl.textContent = text;
+    status = { text: text, bad: !!bad };
+  }
+
+  function showToast(text, color) {
+    toast = { text: text, color: color, t: 3 };
+  }
+
+  function updateHud() {
+    document.getElementById('hudTested').textContent = tested.size + ' / ' + HOLES.length;
+    document.getElementById('hudThrown').textContent = thrown;
+    document.getElementById('hudSwallowed').textContent = swallowed;
+    document.getElementById('hudQuiz').textContent = quizRight + ' / ' + quizTotal;
+  }
+
+  // ---- Drawing helpers -----------------------------------------------------------------
+  let W = 0, H = 0, scale = 1;
+  let stars = [];
+
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    W = canvas.clientWidth;
+    H = canvas.clientHeight;
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    scale = Math.min(W, H) / 2 / VIEW_HALF;
+    stars = [];
+    let seed = 12345;
+    const rnd = function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    for (let i = 0; i < 220; i++) stars.push([rnd() * W, rnd() * H, rnd() * 1.4 + 0.3, rnd()]);
+  }
+
+  // Centre of the view. On small screens the windows dock top and bottom,
+  // so the black hole moves into the open space between them.
+  let CX = 0, CY = 0;
+  function layoutView() {
+    CX = W / 2;
+    CY = H / 2;
+    scale = Math.min(W, H) / 2 / VIEW_HALF;
+    if (window.innerWidth <= 760) {
+      const top = document.getElementById('winInfo').getBoundingClientRect().bottom;
+      const bottom = winControl.getBoundingClientRect().top - 64;     // leave room for the status line
+      if (bottom - top > 120) {
+        CY = (top + bottom) / 2;
+        scale = Math.min(W, bottom - top) / 2 / VIEW_HALF;
+      }
+    }
+  }
+
+  function toScreen(x, y) { return [CX + x * scale, CY + y * scale]; }
+  function toWorld(px, py) { return [(px - CX) / scale, (py - CY) / scale]; }
+
+  // Draw one object. angle points away from the black hole; stretch > 1 = spaghetti;
+  // t is the animation time in seconds (spinning, moving clouds, blinking lights)
+  // noTail: draw the comet without its built-in tail (used in space, where its trail is the tail)
+  function drawObject(c, o, x, y, r, angle, stretch, alpha, t, noTail) {
+    t = t || 0;
+    c.save();
+    c.globalAlpha = alpha;
+    c.translate(x, y);
+    c.rotate(angle);
+    c.scale(stretch, 1 / Math.sqrt(stretch));
+    c.rotate(-angle);
+    // Tumbling objects spin on the spot
+    if (o.kind === 'asteroid') c.rotate(t * 1.3);
+    if (o.kind === 'satellite') c.rotate(Math.sin(t * 0.8) * 0.5);
+    if (o.kind === 'station') c.rotate(t * 0.35);
+
+    if (o.kind === 'planet' || o.kind === 'earth' || o.kind === 'banded' || o.kind === 'saturn') {
+      if (o.kind === 'saturn') drawRing(c, r, true);
+      const g = c.createRadialGradient(-r * 0.35, -r * 0.35, r * 0.1, 0, 0, r);
+      g.addColorStop(0, o.c1);
+      g.addColorStop(1, o.c2);
+      c.beginPath();
+      c.arc(0, 0, r, 0, Math.PI * 2);
+      c.fillStyle = g;
+      c.fill();
+      // The planet turns: surface features slide across and wrap around
+      const roll = function (speed, offset) {
+        const span = r * 3.2;
+        return ((t * speed * r + offset * r) % span + span) % span - span / 2;
+      };
+      c.save();
+      c.clip();
+      if (o.kind === 'earth') {
+        c.fillStyle = '#3FBF6A';
+        const e1 = roll(0.45, 0), e2 = roll(0.45, 1.6);
+        c.beginPath(); c.ellipse(e1, -r * 0.1, r * 0.45, r * 0.3, 0.6, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.ellipse(e2, r * 0.35, r * 0.3, r * 0.22, -0.4, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(255, 255, 255, 0.55)';                  // drifting clouds
+        c.beginPath(); c.ellipse(roll(0.7, 0.8), -r * 0.5, r * 0.4, r * 0.1, 0, 0, Math.PI * 2); c.fill();
+      } else if (o.kind === 'banded') {
+        c.fillStyle = 'rgba(150, 90, 50, 0.55)';
+        c.fillRect(-r, -r * 0.45, r * 2, r * 0.22);
+        c.fillRect(-r, r * 0.15, r * 2, r * 0.28);
+        c.fillStyle = '#C8553D';                                    // the Great Red Spot moves
+        c.beginPath(); c.ellipse(roll(0.5, 0), r * 0.3, r * 0.2, r * 0.12, 0, 0, Math.PI * 2); c.fill();
+      } else {
+        c.fillStyle = 'rgba(0, 0, 0, 0.18)';                        // a darker patch rolls by
+        c.beginPath(); c.ellipse(roll(0.4, 0.5), r * 0.1, r * 0.35, r * 0.25, 0.3, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(255, 255, 255, 0.12)';
+        c.beginPath(); c.ellipse(roll(0.4, 2.1), -r * 0.35, r * 0.3, r * 0.12, 0, 0, Math.PI * 2); c.fill();
+      }
+      // Night side shading stays still so the planet looks round
+      const shade = c.createRadialGradient(-r * 0.4, -r * 0.4, r * 0.2, 0, 0, r * 1.05);
+      shade.addColorStop(0, 'rgba(255, 255, 255, 0.18)');
+      shade.addColorStop(0.6, 'rgba(0, 0, 0, 0)');
+      shade.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
+      c.fillStyle = shade;
+      c.fillRect(-r, -r, r * 2, r * 2);
+      c.restore();
+      if (o.kind === 'saturn') drawRing(c, r, false);
+    } else if (o.kind === 'asteroid') {
+      c.beginPath();
+      const pts = [1, 0.8, 1.1, 0.75, 0.95, 1.05, 0.7, 0.9];
+      pts.forEach(function (k, i) {
+        const a = i / pts.length * Math.PI * 2;
+        const px = Math.cos(a) * r * k, py = Math.sin(a) * r * k * 0.85;
+        if (i === 0) c.moveTo(px, py); else c.lineTo(px, py);
+      });
+      c.closePath();
+      c.fillStyle = '#8A7F75';
+      c.fill();
+      c.fillStyle = '#5E554D';
+      c.beginPath(); c.arc(r * 0.25, -r * 0.2, r * 0.22, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(-r * 0.35, r * 0.25, r * 0.15, 0, Math.PI * 2); c.fill();
+    } else if (o.kind === 'comet') {
+      // In space the comet's tail is its glowing trail (see drawTrail), so the
+      // drawn tail is only used for the sidebar picture.
+      if (!noTail) {
+      c.save();
+      c.rotate(angle);
+      const tail = r * (5 + 0.9 * Math.sin(t * 5) + 0.4 * Math.sin(t * 13));   // flickering tail
+      const wave = Math.sin(t * 3) * r * 0.5;
+      const tg = c.createLinearGradient(0, 0, tail, 0);
+      tg.addColorStop(0, 'rgba(160, 230, 255, 0.85)');
+      tg.addColorStop(1, 'rgba(160, 230, 255, 0)');
+      c.beginPath();
+      c.moveTo(0, -r * 0.8);
+      c.quadraticCurveTo(tail * 0.5, -r * 0.6 + wave, tail, wave);
+      c.quadraticCurveTo(tail * 0.5, r * 0.6 + wave, 0, r * 0.8);
+      c.closePath();
+      c.fillStyle = tg;
+      c.fill();
+      c.restore();
+      }
+      const glowR = r * (1.6 + 0.25 * Math.sin(t * 4));
+      const cg = c.createRadialGradient(0, 0, r * 0.3, 0, 0, glowR);
+      cg.addColorStop(0, 'rgba(200, 245, 255, 0.7)');
+      cg.addColorStop(1, 'rgba(200, 245, 255, 0)');
+      c.fillStyle = cg;
+      c.beginPath(); c.arc(0, 0, glowR, 0, Math.PI * 2); c.fill();
+      c.beginPath();
+      c.arc(0, 0, r * 0.8, 0, Math.PI * 2);
+      c.fillStyle = '#E8FBFF';
+      c.fill();
+    } else if (o.kind === 'satellite') {
+      c.fillStyle = '#2F6BD8';
+      c.fillRect(-r * 1.6, -r * 0.35, r * 0.95, r * 0.7);
+      c.fillRect(r * 0.65, -r * 0.35, r * 0.95, r * 0.7);
+      c.fillStyle = '#E3B341';
+      c.fillRect(-r * 0.55, -r * 0.55, r * 1.1, r * 1.1);
+      c.strokeStyle = '#EAF2FF';
+      c.lineWidth = 1;
+      c.strokeRect(-r * 0.55, -r * 0.55, r * 1.1, r * 1.1);
+      // Sunlight glints across the solar panels
+      const glint = ((t * 0.9) % 2) - 0.5;
+      if (glint < 1.2) {
+        c.fillStyle = 'rgba(255, 255, 255, 0.45)';
+        c.fillRect(-r * 1.6 + glint * r * 0.95, -r * 0.35, r * 0.18, r * 0.7);
+        c.fillRect(r * 0.65 + glint * r * 0.95, -r * 0.35, r * 0.18, r * 0.7);
+      }
+      blink(c, 0, -r * 0.75, r, t, '#FF5C7A');
+    } else if (o.kind === 'station') {
+      c.fillStyle = '#C9D3E0';
+      c.fillRect(-r * 1.3, -r * 0.1, r * 2.6, r * 0.2);       // truss
+      c.fillStyle = '#2F6BD8';
+      [-1.2, -0.75, 0.75, 1.2].forEach(function (k) {
+        c.fillRect(r * k - r * 0.17, -r * 0.8, r * 0.34, r * 0.62);
+        c.fillRect(r * k - r * 0.17, r * 0.18, r * 0.34, r * 0.62);
+      });
+      c.fillStyle = '#EAF2FF';
+      c.fillRect(-r * 0.15, -r * 0.45, r * 0.3, r * 0.9);      // modules
+      blink(c, -r * 1.3, 0, r, t, '#FF5C7A');
+      blink(c, r * 1.3, 0, r, t + 0.6, '#5CFFB0');
+    }
+    c.restore();
+  }
+
+  // Small blinking navigation light
+  function blink(c, x, y, r, t, color) {
+    const on = Math.sin(t * 4) > 0.2;
+    if (!on) return;
+    c.save();
+    c.fillStyle = color;
+    c.shadowColor = color;
+    c.shadowBlur = 6;
+    c.beginPath();
+    c.arc(x, y, Math.max(1.2, r * 0.14), 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+
+  function drawRing(c, r, back) {
+    c.save();
+    c.beginPath();
+    if (back) c.rect(-r * 2, -r * 2, r * 4, r * 2);
+    else c.rect(-r * 2, 0, r * 4, r * 2);
+    c.clip();
+    c.beginPath();
+    c.ellipse(0, 0, r * 1.8, r * 0.5, -0.3, 0, Math.PI * 2);
+    c.strokeStyle = 'rgba(230, 210, 150, 0.9)';
+    c.lineWidth = Math.max(1.5, r * 0.25);
+    c.stroke();
+    c.restore();
+  }
+
+  function drawBackground() {
+    ctx.fillStyle = '#01030B';
+    ctx.fillRect(0, 0, W, H);
+    const now = performance.now() / 1000;
+    for (let i = 0; i < stars.length; i++) {
+      const s = stars[i];
+      ctx.globalAlpha = 0.45 + 0.4 * Math.sin(now * 1.5 + s[3] * 20);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(s[0], s[1], s[2], s[2]);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Black hole: glowing accretion disk, photon ring and the black event horizon
+  function drawHole(h) {
+    const [cx, cy] = toScreen(0, 0);
+    const rs = h.rs * scale;
+    const tilt = -0.25;
+    const turn = performance.now() / 4000;
+
+    function disk(front) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(tilt);
+      ctx.beginPath();
+      if (front) ctx.rect(-rs * 4, 0, rs * 8, rs * 4);
+      else ctx.rect(-rs * 4, -rs * 4, rs * 8, rs * 4);
+      ctx.clip();
+      ctx.scale(1, 0.3);
+      const g = ctx.createRadialGradient(0, 0, rs * 1.3, 0, 0, rs * 3.4);
+      g.addColorStop(0, 'rgba(255, 244, 214, 0.95)');
+      g.addColorStop(0.25, 'rgba(255, 179, 71, 0.95)');
+      g.addColorStop(0.65, 'rgba(255, 90, 20, 0.55)');
+      g.addColorStop(1, 'rgba(255, 60, 10, 0)');
+      ctx.beginPath();
+      ctx.arc(0, 0, rs * 3.4, 0, Math.PI * 2);
+      ctx.arc(0, 0, rs * 1.3, 0, Math.PI * 2, true);
+      ctx.fillStyle = g;
+      ctx.fill('evenodd');
+      // Swirl streaks show the disk spinning
+      ctx.strokeStyle = 'rgba(255, 240, 200, 0.35)';
+      ctx.lineWidth = 2;
+      for (let k = 0; k < 6; k++) {
+        const a = turn * Math.PI * 2 + k * Math.PI / 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, rs * (1.8 + 0.25 * (k % 3)), a, a + 0.6);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Soft glow
+    const glow = ctx.createRadialGradient(cx, cy, rs, cx, cy, rs * 5);
+    glow.addColorStop(0, 'rgba(255, 122, 26, 0.25)');
+    glow.addColorStop(1, 'rgba(255, 122, 26, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(cx - rs * 5, cy - rs * 5, rs * 10, rs * 10);
+
+    disk(false);
+    // Light bent over the top of the hole (lensing halo)
+    ctx.beginPath();
+    ctx.arc(cx, cy, rs * 1.25, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 200, 120, 0.85)';
+    ctx.lineWidth = Math.max(2, rs * 0.12);
+    ctx.stroke();
+    // Event horizon
+    ctx.beginPath();
+    ctx.arc(cx, cy, rs, 0, Math.PI * 2);
+    ctx.fillStyle = '#000000';
+    ctx.fill();
+    disk(true);
+
+    // Dashed ring: too close to place objects
+    ctx.beginPath();
+    ctx.arc(cx, cy, rs * MIN_PLACE, 0, Math.PI * 2);
+    ctx.setLineDash([4, 6]);
+    ctx.strokeStyle = 'rgba(255, 92, 122, 0.45)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function objRadius(o) { return Math.max(5, o.size * Math.min(1.4, Math.max(0.8, W / 700))); }
+
+  function stretchAt(x, y, h) {
+    const r = Math.sqrt(x * x + y * y);
+    const k = h.rs / r;
+    return Math.min(8, 1 + h.tidal * k * k * k * 2);
+  }
+
+  function drawPath(pred) {
+    const pts = pred.pts;
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      const [px, py] = toScreen(pts[i][0], pts[i][1]);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.setLineDash([7, 6]);
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.85)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (pred.outcome === 'capture') {
+      const e = pts[pts.length - 1];
+      const [ex, ey] = toScreen(e[0], e[1]);
+      ctx.strokeStyle = '#FF5C7A';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(ex - 6, ey - 6); ctx.lineTo(ex + 6, ey + 6);
+      ctx.moveTo(ex + 6, ey - 6); ctx.lineTo(ex - 6, ey + 6);
+      ctx.stroke();
+    }
+  }
+
+  // ---- Trails -------------------------------------------------------------------------------
+  // Each object leaves a glowing trail in its own colour: bright and thick near the object,
+  // thin and faded at the tail. Trails of removed objects fade away slowly ("ghosts").
+  const TRAIL_RGB = {
+    mercury: '201, 201, 201', venus: '243, 217, 155', earth: '79, 163, 255', mars: '240, 120, 74',
+    jupiter: '232, 201, 160', saturn: '241, 222, 158', uranus: '181, 241, 244', neptune: '110, 140, 255',
+    asteroid: '190, 175, 160', comet: '160, 230, 255', satellite: '255, 210, 90', station: '0, 229, 255'
+  };
+  const TRAIL_MAX = 320;           // points kept per trail
+  const GHOST_TIME = 1.6;          // seconds a trail takes to fade after its object is gone
+  let ghosts = [];
+
+  function trailColor(o) { return TRAIL_RGB[o.key] || '234, 242, 255'; }
+
+  function addGhost(b) {
+    if (b.trail.length > 1) ghosts.push({ trail: b.trail, rgb: trailColor(b.obj), t: GHOST_TIME, comet: b.obj.kind === 'comet' });
+  }
+
+  const COMET_TAIL = 70;           // the comet's trail is a shorter, wide icy tail that follows it
+
+  function drawTrail(pts, rgb, strength, isComet) {
+    if (isComet && pts.length > COMET_TAIL) pts = pts.slice(pts.length - COMET_TAIL);
+    const n = pts.length;
+    if (n < 2 || strength <= 0) return;
+    const wide = isComet ? 2.4 : 1;
+    const BANDS = 24;
+    const per = Math.max(1, Math.ceil(n / BANDS));
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'butt';          // flat ends so overlapping pieces don't make bright beads
+    ctx.lineJoin = 'round';
+    for (let s = 0; s < n - 1; s += per) {
+      const f = (s + per / 2) / n;           // 0 = tail, 1 = head
+      const e = Math.min(n - 1, s + per);
+      ctx.beginPath();
+      for (let k = s; k <= e; k++) {
+        const [px, py] = toScreen(pts[k][0], pts[k][1]);
+        if (k === s) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      // Soft wide glow
+      ctx.strokeStyle = 'rgba(' + rgb + ', ' + ((isComet ? 0.28 : 0.16) * f * strength).toFixed(3) + ')';
+      ctx.lineWidth = (2 + 7 * f) * wide;
+      ctx.stroke();
+      // Bright core (the comet's core turns white near its head)
+      const coreRgb = isComet && f > 0.6 ? '230, 250, 255' : rgb;
+      ctx.strokeStyle = 'rgba(' + coreRgb + ', ' + (0.85 * f * f * strength).toFixed(3) + ')';
+      ctx.lineWidth = (0.8 + 2.2 * f) * wide;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawGhosts(dt) {
+    for (let i = ghosts.length - 1; i >= 0; i--) {
+      const g = ghosts[i];
+      g.t -= dt;
+      if (g.t <= 0) { ghosts.splice(i, 1); continue; }
+      drawTrail(g.trail, g.rgb, g.t / GHOST_TIME, g.comet);
+    }
+  }
+
+  function drawLive(h) {
+    for (let i = 0; i < live.length; i++) {
+      const b = live[i];
+      drawTrail(b.trail, trailColor(b.obj), 1, b.obj.kind === 'comet');
+      const [px, py] = toScreen(b.x, b.y);
+      const ang = Math.atan2(b.y, b.x);
+      const fade = b.falling > 0 ? Math.max(0, 1 - b.falling / 0.6) : 1;
+      const st = stretchAt(b.x, b.y, h) * (b.falling > 0 ? 1 + b.falling * 4 : 1);
+      // Spins faster as it falls in
+      const spinT = animT * (1 + b.falling * 6) + b.spin;
+      drawObject(ctx, b.obj, px, py, objRadius(b.obj) * (0.4 + 0.6 * fade), ang, st, fade, spinT, true);
+    }
+  }
+
+  function drawPending(h) {
+    if (!pending) return;
+    if (previewToggle.checked && !quizToggle.checked) drawPath(pending.pred);
+    const [px, py] = toScreen(pending.x, pending.y);
+    const o = OBJECTS[objIdx];
+    // Pulsing "ready" ring around the placed object
+    const pulse = (animT * 1.2) % 1;
+    ctx.beginPath();
+    ctx.arc(px, py, objRadius(o) + 6 + pulse * 16, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(0, 229, 255, ' + (0.7 * (1 - pulse)).toFixed(2) + ')';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    drawObject(ctx, o, px, py, objRadius(o), Math.atan2(pending.y, pending.x), stretchAt(pending.x, pending.y, h), 1, animT, true);
+    // Arrow shows the launch direction
+    const sp = Math.sqrt(pending.vx * pending.vx + pending.vy * pending.vy);
+    if (sp > 1) {
+      const len = 18 + 30 * Number(speedInput.value) / 150;
+      const ux = pending.vx / sp, uy = pending.vy / sp;
+      const ax = px + ux * (objRadius(o) + 6), ay = py + uy * (objRadius(o) + 6);
+      const bx = ax + ux * len, by = ay + uy * len;
+      ctx.strokeStyle = '#FF7A1A';
+      ctx.fillStyle = '#FF7A1A';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(bx + ux * 8, by + uy * 8);
+      ctx.lineTo(bx - uy * 6, by + ux * 6);
+      ctx.lineTo(bx + uy * 6, by - ux * 6);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function drawHover(h) {
+    if (!hover || pending || quizOpen) return;
+    const r = Math.sqrt(hover[0] * hover[0] + hover[1] * hover[1]);
+    const [px, py] = toScreen(hover[0], hover[1]);
+    const o = OBJECTS[objIdx];
+    drawObject(ctx, o, px, py, objRadius(o), Math.atan2(hover[1], hover[0]), 1, r < h.rs * MIN_PLACE ? 0.2 : 0.45, animT, true);
+  }
+
+  const UI_FONT = '"Inter", "Segoe UI", system-ui, Arial, sans-serif';
+  const MONO_FONT = '"JetBrains Mono", Consolas, "Courier New", monospace';
+
+  // Tech HUD: range rings around the black hole, scanning sweep and screen corner brackets
+  function drawHud(h) {
+    const [cx, cy] = toScreen(0, 0);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.12)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 8]);
+    ctx.font = '600 12px ' + MONO_FONT;
+    ctx.fillStyle = 'rgba(0, 229, 255, 0.4)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    for (let k = 2; k <= 10; k += 2) {
+      const rr = h.rs * k * scale;
+      if (rr > Math.max(W, H)) break;
+      ctx.beginPath();
+      ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillText(k + '× EDGE', cx + rr * 0.707 + 4, cy - rr * 0.707);
+    }
+    ctx.setLineDash([]);
+
+    // Slow radar sweep
+    const sweep = animT * 0.6;
+    const reach = Math.max(W, H);
+    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, reach * 0.5);
+    grad.addColorStop(0, 'rgba(0, 229, 255, 0.10)');
+    grad.addColorStop(1, 'rgba(0, 229, 255, 0)');
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, reach * 0.5, sweep, sweep + 0.35);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Corner brackets around the whole view
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.55)';
+    ctx.lineWidth = 2;
+    const m = 8, L = 26;
+    [[m, m, 1, 1], [W - m, m, -1, 1], [m, H - m, 1, -1], [W - m, H - m, -1, -1]].forEach(function (c) {
+      ctx.beginPath();
+      ctx.moveTo(c[0], c[1] + c[3] * L);
+      ctx.lineTo(c[0], c[1]);
+      ctx.lineTo(c[0] + c[2] * L, c[1]);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  // Distance readout next to the mouse
+  function drawHoverReadout(h) {
+    if (!hover || quizOpen) return;
+    const r = Math.sqrt(hover[0] * hover[0] + hover[1] * hover[1]);
+    const [px, py] = toScreen(hover[0], hover[1]);
+    const tooClose = r < h.rs * MIN_PLACE;
+    ctx.font = '700 13px ' + MONO_FONT;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = tooClose ? '#FF5C7A' : 'rgba(0, 229, 255, 0.9)';
+    ctx.fillText(tooClose ? 'TOO CLOSE' : 'DIST ' + (r / h.rs).toFixed(1) + '× EDGE', px + 16, py + 14);
+  }
+
+  // Status line at the bottom (just above Mission Control on small screens)
+  function drawStatus() {
+    let base = H - 22;
+    const rect = winControl.getBoundingClientRect();
+    if (rect.left < W / 2 && rect.right > W / 2) base = Math.min(base, rect.top - 14);
+    let text = status.text;
+    let color = status.bad ? '#FF7A1A' : '#EAF2FF';
+    if (quizToggle.checked && pending && previewToggle.checked && !status.bad) {
+      text = 'Path hidden in quiz mode. Press Launch and make a guess!';
+    }
+    ctx.font = '700 18px ' + UI_FONT;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    // Wrap long messages so they stay in the open space between the windows
+    const maxW = Math.min(W - 48, W > 1100 ? W - 720 : 640);
+    const lines = [];
+    let line = '';
+    text.split(' ').forEach(function (word) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = word; }
+      else line = test;
+    });
+    if (line) lines.push(line);
+    const LH = 24;
+    let widest = 0;
+    lines.forEach(function (l) { widest = Math.max(widest, ctx.measureText(l).width); });
+    const tw = Math.min(W - 24, widest + 36);
+    const boxH = 16 + LH * lines.length;
+    ctx.fillStyle = 'rgba(1, 3, 11, 0.72)';
+    ctx.strokeStyle = 'rgba(0, 229, 255, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(W / 2 - tw / 2, base - boxH + 6, tw, boxH, 20);
+    else ctx.rect(W / 2 - tw / 2, base - boxH + 6, tw, boxH);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = color;
+    lines.forEach(function (l, k) {
+      ctx.fillText(l, W / 2, base - 4 - (lines.length - 1 - k) * LH, W - 48);
+    });
+    base -= LH * (lines.length - 1);
+
+    if (toast) {
+      ctx.globalAlpha = Math.min(1, toast.t);
+      ctx.font = '800 26px ' + UI_FONT;
+      ctx.fillStyle = toast.color;
+      ctx.shadowColor = toast.color;
+      ctx.shadowBlur = 14;
+      ctx.fillText(toast.text, W / 2, base - 50, W - 48);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  function drawText(h) {
+    drawHoverReadout(h);
+    drawStatus();
+  }
+
+  // ---- Simulation ------------------------------------------------------------------------
+  function simulate(dt) {
+    const h = hole();
+    const steps = Math.round(dt / SUB_DT);
+    for (let i = live.length - 1; i >= 0; i--) {
+      const b = live[i];
+      if (b.falling > 0) {
+        b.falling += dt;
+        if (b.falling > 0.6) { addGhost(b); live.splice(i, 1); }
+        continue;
+      }
+      let gone = false;
+      for (let n = 0; n < steps; n++) {
+        step(b, h);
+        const r = Math.sqrt(b.x * b.x + b.y * b.y);
+        const a2 = Math.atan2(b.y, b.x);
+        let d = a2 - b.ang;
+        if (d > Math.PI) d -= 2 * Math.PI;
+        if (d < -Math.PI) d += 2 * Math.PI;
+        b.swept += d;
+        b.ang = a2;
+        if (r <= h.rs) {
+          b.falling = 0.0001;
+          swallowed++;
+          report(b);
+          break;
+        }
+        if (b.outcome === 'escape' && r > VIEW_HALF * 1.6) report(b);
+        if (b.outcome === 'orbit' && Math.abs(b.swept) >= 2 * Math.PI) report(b);
+        if (r > ESCAPE_R) { gone = true; break; }
+      }
+      b.trail.push([b.x, b.y]);
+      if (b.trail.length > TRAIL_MAX) b.trail.shift();
+      if (gone) { report(b); addGhost(b); live.splice(i, 1); continue; }
+    }
+  }
+
+  // ---- Input -------------------------------------------------------------------------------
+  function eventToWorld(e) {
+    const rect = canvas.getBoundingClientRect();
+    return toWorld(e.clientX - rect.left, e.clientY - rect.top);
+  }
+
+  canvas.addEventListener('pointerdown', function (e) {
+    canvas.focus();
+    const p = eventToWorld(e);
+    placeAt(p[0], p[1]);
+  });
+  canvas.addEventListener('pointermove', function (e) { hover = eventToWorld(e); });
+  canvas.addEventListener('pointerleave', function () { hover = null; });
+
+  canvas.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      launch();
+    }
+  });
+
+  speedInput.addEventListener('input', function () {
+    speedOut.textContent = speedInput.value + '%';
+    updatePending();
+  });
+
+  quizToggle.addEventListener('change', function () {
+    if (pending) {
+      setMessage(quizToggle.checked
+        ? 'Quiz on! Press Launch, then guess what will happen.'
+        : 'Ready! Press Launch to let it go.', false);
+    }
+  });
+
+  launchBtn.addEventListener('click', launch);
+  clearBtn.addEventListener('click', function () {
+    live.forEach(addGhost);        // trails fade out instead of vanishing
+    live = [];
+    pending = null;
+    launchBtn.disabled = true;
+    setMessage('Space is clear. Click anywhere to place a new object.', false);
+  });
+  window.addEventListener('resize', function () {
+    resizeCanvas();
+    document.querySelectorAll('.win[data-moved]').forEach(keepOnScreen);
+  });
+
+  // ---- Windows: hide/show, drag by the title bar, full screen ------------------------------
+  const winControl = document.getElementById('winControl');
+
+  document.querySelectorAll('.win-min').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const win = btn.closest('.win');
+      const hidden = win.classList.toggle('min');
+      btn.textContent = hidden ? '+' : '–';
+      btn.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+      btn.setAttribute('aria-label', hidden ? 'Show window' : 'Hide window');
+      btn.title = hidden ? 'Show window' : 'Hide window';
+    });
+  });
+
+  function keepOnScreen(win) {
+    const r = win.getBoundingClientRect();
+    const x = Math.min(Math.max(0, r.left), Math.max(0, window.innerWidth - r.width));
+    const y = Math.min(Math.max(0, r.top), Math.max(0, window.innerHeight - 50));
+    win.style.left = x + 'px';
+    win.style.top = y + 'px';
+  }
+
+  [winControl, document.getElementById('winInfo')].forEach(function (win) {
+    const bar = win.querySelector('.win-bar');
+    let drag = null;
+    bar.addEventListener('pointerdown', function (e) {
+      if (e.target.closest('button') || window.innerWidth <= 760) return;
+      const r = win.getBoundingClientRect();
+      drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      win.style.right = 'auto';
+      win.setAttribute('data-moved', '');
+      bar.setPointerCapture(e.pointerId);
+    });
+    bar.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      win.style.left = (e.clientX - drag.dx) + 'px';
+      win.style.top = (e.clientY - drag.dy) + 'px';
+      keepOnScreen(win);
+    });
+    function stop() { drag = null; }
+    bar.addEventListener('pointerup', stop);
+    bar.addEventListener('pointercancel', stop);
+  });
+
+  // On small screens start with the data window folded so the black hole stays visible
+  if (window.innerWidth <= 760) document.querySelector('#winInfo .win-min').click();
+
+  // Full screen button (only shown when the browser allows it here)
+  const fullBtn = document.getElementById('fullBtn');
+  if (document.fullscreenEnabled) {
+    fullBtn.hidden = false;
+    fullBtn.addEventListener('click', function () {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen().catch(function () {});
+    });
+  }
+
+  // ---- Loop ----------------------------------------------------------------------------------
+  let last = performance.now();
+  let acc = 0;
+  let animT = 0;                   // animation clock (stays still if the user prefers reduced motion)
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function frame(now) {
+    const elapsed = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    if (!reduceMotion) animT += elapsed;
+    drawIcons(animT);
+    if (!quizOpen) {
+      acc += elapsed;
+      const chunk = Math.floor(acc / SUB_DT) * SUB_DT;
+      if (chunk > 0) {
+        simulate(chunk);
+        acc -= chunk;
+      }
+    }
+    if (toast) {
+      toast.t -= elapsed;
+      if (toast.t <= 0) toast = null;
+    }
+
+    const h = hole();
+    layoutView();
+    drawBackground();
+    drawHud(h);
+    drawHole(h);
+    drawGhosts(elapsed);
+    drawLive(h);
+    drawPending(h);
+    drawHover(h);
+    drawText(h);
+    requestAnimationFrame(frame);
+  }
+
+  // ---- Start ------------------------------------------------------------------------------------
+  resizeCanvas();
+  buildPickers();
+  selectHole(0);
+  selectObject(objIdx);
+  updateHud();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

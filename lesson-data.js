@@ -63,7 +63,7 @@
     [13, "medium", "Getting into Orbit", "Learn how speed and height place a spacecraft into a stable orbit.", 15,
       ["How orbits work", "Orbit quiz", "Speed to orbit"]],
     [14, "medium", "Mars Rovers", "Meet the six-wheeled rovers exploring the red dust of Mars.", 17,
-      ["Rovers on the Red Planet", "Rover wheels quiz", "Drive the rover"], "Simulation 2"],
+      ["Sapphire Canyon sample", "Mars sample check", "Drive the rover"], "Simulation 2"],
     [15, "medium", "Deep Space Probes", "Learn how probes travel beyond the planets to send back data.", 19,
       ["Probes beyond the planets", "Probe mission quiz", "Probe travel sim"]],
     [16, "medium", "Antennas & Waves", "Discover how antennas send and catch radio waves across space.", 20,

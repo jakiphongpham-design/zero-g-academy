@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rover Sample Run | Zero-G Academy</title>
+  <link rel="stylesheet" href="style.css?v=20261115">
+</head>
+<body>
+<header>
+  <div>
+    <div class="label">Simulation 2 &middot; Mars Rovers</div>
+    <h1>Rover Sample Run</h1>
+    <p class="intro">Drive NASA's Perseverance rover over rough Mars ground. Collect all three rock samples without tipping over.</p>
+  </div>
+</header>
+
+<main>
+  <div class="levels" role="group" aria-label="Difficulty">
+    <span class="label">Difficulty</span>
+    <button type="button" class="level" data-level="easy" aria-pressed="true">Mars Plains</button>
+    <button type="button" class="level" data-level="medium" aria-pressed="false" aria-disabled="false">Highlands</button>
+    <button type="button" class="level" data-level="hard" aria-pressed="false" aria-disabled="false">Mountainous Area</button>
+  </div>
+
+  <div class="stage">
+    <canvas id="stage" tabindex="0" aria-label="Side view of the Perseverance rover on rocky Mars ground. Drive with the arrow keys or A and D, or use the drive buttons below."></canvas>
+    <div class="overlay" id="overlay" role="alertdialog" aria-live="assertive">
+      <div class="overlay-box">
+        <p id="overlayText">The rover tipped over.</p>
+        <button type="button" class="primary" id="tryAgainBtn">Restart now</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div class="hud-item">
+      <span class="label">Samples</span>
+      <span class="hud-value" id="hudSamples">0 / 3</span>
+    </div>
+    <div class="hud-item">
+      <span class="label">Speed</span>
+      <span class="hud-value" id="hudSpeed">0.0 m/s</span>
+    </div>
+    <div class="hud-item">
+      <span class="label">Tilt</span>
+      <span class="hud-value" id="hudTilt">0&deg;</span>
+    </div>
+    <div class="hud-item">
+      <span class="label">HP</span>
+      <span class="hud-value" id="hudHp">50 / 50</span>
+    </div>
+    <div class="hud-item">
+      <span class="label">Level</span>
+      <span class="hud-value" id="hudLevel">Mars Plains</span>
+    </div>
+    <div class="hud-item">
+      <span class="label">Stability</span>
+      <span class="hud-value stability" id="hudStability" data-state="stable">Stable</span>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <span id="hint">Drive slowly on hills. Stop above a sample, then press Down or S.</span>
+    <div class="actions">
+      <button type="button" class="primary" id="collectBtn" aria-label="Collect sample">Collect sample</button>
+      <button type="button" class="drive" id="reverseBtn" aria-label="Reverse">&#9664; Reverse</button>
+      <button type="button" class="drive" id="forwardBtn" aria-label="Forward">Forward &#9654;</button>
+      <button type="button" class="secondary" id="restartBtn">Restart level</button>
+    </div>
+  </div>
+  <p class="toolbar complete" id="message" aria-live="polite"></p>
+  <p class="source-note">Rock profiles use NASA's Mars Rock Samples catalog.</p>
+</main>
+  <script type="module" src="physics.js?v=20261115"></script>
+</body>
+</html>

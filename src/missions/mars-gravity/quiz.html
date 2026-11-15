@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mars Sample Check | Zero-G Academy</title>
+  <link rel="stylesheet" href="quiz.css?v=20261115">
+</head>
+<body>
+  <main>
+    <section class="quiz-card" id="quiz-card" aria-labelledby="quiz-title">
+      <div class="quiz-heading">
+        <div>
+          <p class="kicker">Lesson 14 · Mars Sample Check</p>
+          <h1 id="quiz-title">Ready for the science debrief?</h1>
+        </div>
+        <p class="pass-note">Pass: 4 of 5</p>
+      </div>
+
+      <div class="progress-track" aria-hidden="true">
+        <span id="progress-bar"></span>
+      </div>
+      <p id="counter" class="counter"></p>
+
+      <fieldset>
+        <legend id="question"></legend>
+        <div id="options" class="options"></div>
+      </fieldset>
+
+      <div class="actions">
+        <button id="next-button" class="button button-primary" type="button" disabled>Next question</button>
+      </div>
+    </section>
+
+    <section id="result" class="quiz-card result" aria-live="polite" hidden></section>
+  </main>
+
+  <script src="quiz.js?v=20261115"></script>
+</body>
+</html>

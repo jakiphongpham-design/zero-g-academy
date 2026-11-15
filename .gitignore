@@ -1,6 +1,11 @@
 # Dependencies (the project is dependency-free, but dev tooling may add these)
 node_modules/
 
+# Local secrets
+.env
+.env.*
+!.env.example
+
 # OS files
 .DS_Store
 .DS_Store?

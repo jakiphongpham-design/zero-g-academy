@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Dashboard | Zero-G Academy</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="lesson-data.js"></script>
+  <link rel="stylesheet" href="src/core/chat-widget.css?v=20261115">
+  <script src="src/core/chat-widget.js?v=20261115" defer></script>
+  <script src="lesson-data.js?v=20261115"></script>
   <script src="lesson-art.js"></script>
 </head>
 <body class="has-scene">
@@ -147,15 +149,24 @@
       const PROFILE_KEY = "zga.profile.v1";
       const TASKS_KEY = "zga.tasks.v1";
       const GUEST_NAME = "Guest Cadet";
-      // Mission 1 carousel: simulation, then video, then quiz.
+      // Implemented study routes. Lessons 1 and 14 use three-step carousels.
       // The video uses the /embed/ form because a watch page refuses to load inside an iframe.
-      const mission1Steps = [
-        "mission1.html",
-        "https://www.youtube.com/embed/suQDwZcnJdg",
-        "quiz1.html",
-      ];
+      const LESSON_STUDY_STEPS = Object.freeze({
+        1: Object.freeze([
+          "mission1.html",
+          "https://www.youtube.com/embed/suQDwZcnJdg",
+          "quiz1.html",
+        ]),
+        14: Object.freeze([
+          "src/missions/mars-gravity/index.html",
+          "https://www.youtube.com/embed/9bLhVJKoIOg",
+          "src/missions/mars-gravity/quiz.html",
+        ]),
+      });
+      const QUIZ_LESSONS = new Set([1, 14]);
+      let studySteps = [];
       let currentStepIndex = 0;
-      let sequenceActive = false;  // true while the Mission 1 carousel is running
+      let sequenceActive = false;  // true while an implemented study sequence is running
       let quizLocked = false;      // true from the quiz step until QUIZ_PASSED
 
       const { CATEGORIES, LESSONS, TASK_KEYS } = window.ZGA_LESSONS;
@@ -202,6 +213,9 @@
       /** Sequential rule: done if all tasks are complete, current if first not done, else locked. */
       function statusOf(id) {
         if (isLessonDone(id)) return "done";
+        // Lesson 14 is an explicitly enabled preview while the rest of the roadmap
+        // continues to use the normal sequential unlock rule.
+        if (id === 14) return "current";
         const firstOpen = LESSONS.find((lesson) => !isLessonDone(lesson.id));
         return firstOpen && firstOpen.id === id ? "current" : "locked";
       }
@@ -211,6 +225,17 @@
         const current = doneTasks(id);
         const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key];
         progress = { ...progress, [id]: next };
+        writeJSON(TASKS_KEY, progress);
+        renderTree();
+        renderProfile();
+        renderModalState();
+      }
+
+      /** Mark one task complete without toggling it off when a simulation replays. */
+      function completeTask(id, key) {
+        const current = doneTasks(id);
+        if (current.includes(key)) return;
+        progress = { ...progress, [id]: [...current, key] };
         writeJSON(TASKS_KEY, progress);
         renderTree();
         renderProfile();
@@ -371,8 +396,8 @@
         sequenceActive = false;
         quizLocked = false;
         currentStepIndex = 0;
-        // Lesson 1 waits for Study before Next is available; other lessons close directly.
-        const awaitingStudy = id === 1 && statusOf(id) !== "locked";
+        studySteps = LESSON_STUDY_STEPS[id] || [];
+        const awaitingStudy = studySteps.length > 0 && statusOf(id) !== "locked";
         setAction(awaitingStudy ? "Next" : "Close", !awaitingStudy);
         renderModalState();
         dialog.showModal();
@@ -461,8 +486,8 @@
 
       /** Load one carousel step into the iframe. Returns false if it could not be shown. */
       async function showStep(index) {
-        const url = mission1Steps[index];
-        const stepText = `Step ${index + 1} of ${mission1Steps.length}`;
+        const url = studySteps[index];
+        const stepText = `Step ${index + 1} of ${studySteps.length}`;
         $("study-frame-wrap").hidden = true;
         $("study-retry").hidden = true;
         setStudy("loading", `${stepText}: loading…`);
@@ -491,8 +516,9 @@
       /** Move the carousel to a step and set the action button to match. */
       async function goToStep(index) {
         currentStepIndex = index;
-        const isLast = index === mission1Steps.length - 1;
-        quizLocked = isLast;  // the quiz cannot be left until it is passed
+        const isLast = index === studySteps.length - 1;
+        const isQuiz = QUIZ_LESSONS.has(activeId) && isLast;
+        quizLocked = isQuiz;  // A quiz step cannot be left until it is passed
         setAction(isLast ? "Close" : "Next", false);
         $("study-button").disabled = true;
 
@@ -504,10 +530,10 @@
           // Never trap the cadet on a missing file: the button becomes an exit.
           quizLocked = false;
           setAction("Close", true);
-        } else if (isLast) {
+        } else if (isQuiz) {
           setAction("Close", false);
         } else {
-          setAction("Next", true);
+          setAction(isLast ? "Close" : "Next", true);
         }
       }
 
@@ -516,8 +542,7 @@
         const id = activeId;
         const lesson = lessonById(id);
 
-        // Only lesson 1 has a carousel for now. Others show a coming-soon note.
-        if (id !== 1) {
+        if (studySteps.length === 0) {
           $("study-frame-wrap").hidden = true;
           setStudy("idle", `The ${lesson.title} simulation is coming soon.`);
           return;
@@ -532,7 +557,7 @@
       $("study-button").addEventListener("click", startStudy);
       $("study-retry").addEventListener("click", () => goToStep(currentStepIndex));
       actionBtn.addEventListener("click", () => {
-        if (!sequenceActive || currentStepIndex === mission1Steps.length - 1) {
+        if (!sequenceActive || currentStepIndex === studySteps.length - 1) {
           dialog.close();
           return;
         }
@@ -549,6 +574,7 @@
         sequenceActive = false;
         quizLocked = false;
         currentStepIndex = 0;
+        studySteps = [];
       });
       dialog.addEventListener("click", (event) => {
         if (event.target === dialog && !quizLocked) dialog.close();
@@ -571,11 +597,26 @@
       window.addEventListener("message", (event) => {
         // Only trust the frame currently in the modal.
         const frame = $("study-frame");
+        if (event.origin !== window.location.origin) return;
         if (!frame.contentWindow || event.source !== frame.contentWindow) return;
 
         const data = event.data;
-        if (!data || typeof data !== "object" || data.type !== "QUIZ_PASSED") return;
-        if (!sequenceActive || activeId === null || currentStepIndex !== mission1Steps.length - 1) return;
+        if (!data || typeof data !== "object" || !sequenceActive || activeId === null) return;
+
+        if (
+          data.type === "ZGA_MISSION_COMPLETE" &&
+          data.missionId === "mars-gravity" &&
+          Number.isInteger(data.score) &&
+          data.score >= 0 &&
+          activeId === 14
+        ) {
+          completeTask(14, "simulation");
+          setStudy("ready", "Rover challenge complete. Your simulation progress is saved.");
+          return;
+        }
+
+        if (data.type !== "QUIZ_PASSED") return;
+        if (currentStepIndex !== studySteps.length - 1) return;
 
         quizLocked = false;
         setAction("Close", true);

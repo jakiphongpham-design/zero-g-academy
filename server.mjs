@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const ENV_FILE = join(ROOT, ".env");
-const REFUSAL = "Sorry, I cannot answer that. I can only answer questions about space.";
 const MAX_BODY_BYTES = 32_000;
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_HISTORY_MESSAGES = 10;
@@ -46,8 +45,6 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
 const SYSTEM_INSTRUCTION = "You are Laika, a professional space science teacher for Zero-G Academy. Explain concepts using simple, easy-to-understand vocabulary. You must strictly adhere to these rules: 1. Only answer questions related to space, astronomy, physics, space exploration history, and famous astronauts. If a question falls outside these specific domains, politely refuse and redirect the user back to space topics. 2. Your responses must always be between 3 and 5 sentences long. Do not exceed 5 sentences.";
 
-const SPACE_TERMS = /\b(space|universe|cosmos|astronom\w*|planet\w*|mercury|venus|earth|moon|mars|jupiter|saturn|uranus|neptune|pluto|asteroid\w*|comet\w*|meteor\w*|star\w*|sun|solar|galax\w*|milky way|nebula\w*|black hole\w*|supernova\w*|gravity|orbit\w*|rocket\w*|spacecraft|spaceship\w*|satellite\w*|astronaut\w*|cosmonaut\w*|rover\w*|nasa|esa|spacex|telescope\w*|iss|space station|apollo|artemis|perseverance|curiosity|voyager|hubble|webb|jwst|exoplanet\w*|light[- ]?year\w*|big bang|dark matter|dark energy|alien\w*|extraterrestrial\w*|laika|microgravity|zero[- ]?g|eclipse\w*|aurora\w*|magnetosphere|atmosphere|relativity|einstein)\b/i;
-const FOLLOW_UP = /^(why|how|when|where|who|what about|tell me more|explain more|can you explain|and that|really|is that true)[?!. ]*$/i;
 
 const SOCIAL_REPLIES = [
   {
@@ -91,13 +88,6 @@ const SOCIAL_REPLIES = [
 function friendlyConversationReply(messages) {
   const latest = [...messages].reverse().find((message) => message.role === "user")?.text.trim() || "";
   return SOCIAL_REPLIES.find(({ pattern }) => pattern.test(latest))?.reply || null;
-}
-
-function isSpaceQuestion(messages) {
-  const latest = [...messages].reverse().find((message) => message.role === "user")?.text || "";
-  if (SPACE_TERMS.test(latest)) return true;
-  if (!FOLLOW_UP.test(latest.trim())) return false;
-  return messages.slice(0, -1).some((message) => SPACE_TERMS.test(message.text));
 }
 
 function normalizeMessages(value) {
@@ -258,12 +248,6 @@ async function handleChat(request, response) {
     return;
   }
 
-  if (!isSpaceQuestion(messages)) {
-    startTextStream(response);
-    response.end(REFUSAL);
-    return;
-  }
-
   if (!GEMINI_API_KEY) {
     sendJson(response, 503, { error: "Laika is not connected yet. Add GEMINI_API_KEY to .env." });
     return;
@@ -414,4 +398,4 @@ server.listen(PORT, HOST, () => {
   console.log(`Laika model: ${GEMINI_MODEL}`);
 });
 
-export { REFUSAL, friendlyConversationReply, isSpaceQuestion, normalizeMessages, server };
+export { friendlyConversationReply, normalizeMessages, server };

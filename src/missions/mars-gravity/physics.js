@@ -27,7 +27,7 @@
   const STOP_SPEED = 0.1;          // m/s, the rover must be this still before a sample can be collected
   const SUB_DT     = 1 / 480;      // fixed physics step (s)
   const AUTO_RESTART_SECONDS = 3;
-  const FLIP_FAIL_DEG = 50;        // the rover only tips over when its tilt goes past this (degrees), on every stage
+  const FLIP_FAIL_DEG = 90;        // the rover only tips over when its tilt is strictly greater than this (degrees), on every stage
   const MIN_FLIP_ANGLE_DEG = 24;
   const MAX_SPEED_PENALTY_DEG = 24;
   const MAX_SLOPE_PENALTY_DEG = 16;
